@@ -67,16 +67,15 @@ Deserializer::Deserializer(const std::shared_ptr<Config>& config)
 
 void Deserializer::setDeserializerMethod(const data::mapping::type::ClassId& classId, DeserializerMethod method) {
   const v_uint32 id = classId.id;
-  if(id < m_methods.size()) {
-    m_methods[id] = method;
-  } else {
-    throw std::runtime_error("[oatpp::parser::json::mapping::Deserializer::setDeserializerMethod()]: Error. Unknown classId");
+  if(id >= m_methods.size()) {
+    m_methods.resize(id + 1, nullptr);
   }
+  m_methods[id] = method;
 }
 
 void Deserializer::skipScope(oatpp::parser::Caret& caret, v_char8 charOpen, v_char8 charClose){
 
-  p_char8 data = caret.getData();
+  const char* data = caret.getData();
   v_buff_size size = caret.getDataSize();
   v_buff_size pos = caret.getPosition();
   v_int32 scopeCounter = 0;
@@ -109,7 +108,7 @@ void Deserializer::skipScope(oatpp::parser::Caret& caret, v_char8 charOpen, v_ch
 }
 
 void Deserializer::skipString(oatpp::parser::Caret& caret){
-  p_char8 data = caret.getData();
+  const char* data = caret.getData();
   v_buff_size size = caret.getDataSize();
   v_buff_size pos = caret.getPosition();
   v_int32 scopeCounter = 0;
@@ -129,7 +128,7 @@ void Deserializer::skipString(oatpp::parser::Caret& caret){
 }
 
 void Deserializer::skipToken(oatpp::parser::Caret& caret){
-  p_char8 data = caret.getData();
+  const char* data = caret.getData();
   v_buff_size size = caret.getDataSize();
   v_buff_size pos = caret.getPosition();
   while(pos < size){
@@ -252,7 +251,7 @@ oatpp::Void Deserializer::deserializeAny(Deserializer* deserializer, parser::Car
     const Type* const fieldType = guessType(caret);
     if(fieldType != nullptr) {
       auto fieldValue = deserializer->deserialize(caret, fieldType);
-      auto anyHandle = std::make_shared<data::mapping::type::AnyHandle>(fieldValue.getPtr(), fieldValue.valueType);
+      auto anyHandle = std::make_shared<data::mapping::type::AnyHandle>(fieldValue.getPtr(), fieldValue.getValueType());
       return oatpp::Void(anyHandle, Any::Class::getType());
     }
   }

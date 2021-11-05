@@ -45,6 +45,7 @@
 #include "oatpp/network/virtual_/server/ConnectionProvider.hpp"
 #include "oatpp/network/virtual_/Interface.hpp"
 
+#include "oatpp/core/data/resource/InMemoryData.hpp"
 #include "oatpp/core/macro/component.hpp"
 
 #include "oatpp-test/web/ClientServerTestRunner.hpp"
@@ -72,9 +73,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, serverConnectionProvider)([this] {
 
     if(m_port == 0) { // Use oatpp virtual interface
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ServerConnectionProvider>(
-        oatpp::network::virtual_::server::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::server::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -100,9 +101,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, clientConnectionProvider)([this] {
 
     if(m_port == 0) {
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ClientConnectionProvider>(
-        oatpp::network::virtual_::client::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::client::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -124,7 +125,7 @@ std::shared_ptr<PartList> createMultipart(const std::unordered_map<oatpp::String
     auto part = std::make_shared<oatpp::web::mime::multipart::Part>(partHeaders);
     multipart->writeNextPartSimple(part);
     part->putHeader("Content-Disposition", "form-data; name=\"" + pair.first + "\"");
-    part->setDataInfo(std::make_shared<oatpp::data::stream::BufferInputStream>(pair.second));
+    part->setPayload(std::make_shared<oatpp::data::resource::InMemoryData>(pair.second));
 
   }
 
@@ -403,7 +404,7 @@ void FullTest::onRun() {
         // should also add the WWW-Authenticate header when Authorization is missing or wrong
         auto header = response->getHeader(oatpp::web::protocol::http::Header::WWW_AUTHENTICATE);
         OATPP_ASSERT(header);
-        OATPP_ASSERT(header->startsWith("Basic realm=\"custom-test-realm\""));
+        OATPP_ASSERT(header == "Basic realm=\"custom-test-realm\"");
       }
 
       { // test custom authorization handler with custom authorization method
@@ -434,7 +435,7 @@ void FullTest::onRun() {
         v_int32 numIterations = 10;
         oatpp::data::stream::ChunkedBuffer stream;
         for(v_int32 i = 0; i < numIterations; i++) {
-          stream.writeSimple(sample->getData(), sample->getSize());
+          stream.writeSimple(sample->data(), sample->size());
         }
         auto data = stream.toString();
         auto response = client->getChunked(sample, numIterations, connection);
@@ -459,8 +460,8 @@ void FullTest::onRun() {
         multipart = std::make_shared<oatpp::web::mime::multipart::PartList>(response->getHeaders());
 
         oatpp::web::mime::multipart::Reader multipartReader(multipart.get());
-        multipartReader.setPartReader("value1", std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(10));
-        multipartReader.setPartReader("value2", std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(10));
+        multipartReader.setPartReader("value1", oatpp::web::mime::multipart::createInMemoryPartReader(10));
+        multipartReader.setPartReader("value2", oatpp::web::mime::multipart::createInMemoryPartReader(10));
 
         response->transferBody(&multipartReader);
 
@@ -469,10 +470,13 @@ void FullTest::onRun() {
         auto part2 = multipart->getNamedPart("value2");
 
         OATPP_ASSERT(part1);
-        OATPP_ASSERT(part2);
+        OATPP_ASSERT(part1->getPayload());
 
-        OATPP_ASSERT(part1->getInMemoryData() == "Hello");
-        OATPP_ASSERT(part2->getInMemoryData() == "World");
+        OATPP_ASSERT(part2);
+        OATPP_ASSERT(part2->getPayload());
+
+        OATPP_ASSERT(part1->getPayload()->getInMemoryData() == "Hello");
+        OATPP_ASSERT(part2->getPayload()->getInMemoryData() == "World");
 
       }
 
@@ -483,10 +487,25 @@ void FullTest::onRun() {
         OATPP_ASSERT(value == "Hello World!!!");
       }
 
+      { // test header replacement
+        auto response = client->getInterceptors(connection);
+        OATPP_ASSERT(response->getStatusCode() == 200);
+        OATPP_ASSERT(response->getHeader("to-be-replaced") == "replaced_value");
+      }
+
       if((i + 1) % iterationsStep == 0) {
         auto ticks = oatpp::base::Environment::getMicroTickCount() - lastTick;
         lastTick = oatpp::base::Environment::getMicroTickCount();
         OATPP_LOGV("i", "%d, tick=%d", i + 1, ticks);
+      }
+
+      { // test bundle
+        auto response = client->getBundle(connection);
+        OATPP_ASSERT(response->getStatusCode() == 200);
+        auto dto = response->readBodyToDto<oatpp::Object<app::TestDto>>(objectMapper.get());
+        OATPP_ASSERT(dto);
+        OATPP_ASSERT(dto->testValue == "str-param");
+        OATPP_ASSERT(dto->testValueInt == 32000);
       }
 
     }

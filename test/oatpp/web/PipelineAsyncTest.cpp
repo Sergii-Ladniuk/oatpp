@@ -67,9 +67,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, serverConnectionProvider)([this] {
 
     if(m_port == 0) { // Use oatpp virtual interface
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ServerConnectionProvider>(
-        oatpp::network::virtual_::server::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::server::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -96,9 +96,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, clientConnectionProvider)([this] {
 
     if(m_port == 0) {
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ClientConnectionProvider>(
-        oatpp::network::virtual_::client::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::client::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -139,7 +139,7 @@ void PipelineAsyncTest::onRun() {
     OATPP_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, clientConnectionProvider);
 
     auto connection = clientConnectionProvider->get();
-    connection->setInputStreamIOMode(oatpp::data::stream::IOMode::BLOCKING);
+    connection.object->setInputStreamIOMode(oatpp::data::stream::IOMode::BLOCKING);
 
     std::thread pipeInThread([this, connection] {
 
@@ -153,7 +153,7 @@ void PipelineAsyncTest::onRun() {
 
       oatpp::data::buffer::IOBuffer ioBuffer;
 
-      oatpp::data::stream::transfer(&inputStream, connection.get(), 0, ioBuffer.getData(), ioBuffer.getSize());
+      oatpp::data::stream::transfer(&inputStream, connection.object.get(), 0, ioBuffer.getData(), ioBuffer.getSize());
 
     });
 
@@ -163,11 +163,11 @@ void PipelineAsyncTest::onRun() {
       oatpp::data::stream::ChunkedBuffer receiveStream;
       oatpp::data::buffer::IOBuffer ioBuffer;
 
-      auto res = oatpp::data::stream::transfer(connection.get(), &receiveStream, sample->getSize() * m_pipelineSize, ioBuffer.getData(), ioBuffer.getSize());
+      auto res = oatpp::data::stream::transfer(connection.object.get(), &receiveStream, sample->size() * m_pipelineSize, ioBuffer.getData(), ioBuffer.getSize());
 
       auto result = receiveStream.toString();
 
-      OATPP_ASSERT(result->getSize() == sample->getSize() * m_pipelineSize);
+      OATPP_ASSERT(result->size() == sample->size() * m_pipelineSize);
       //OATPP_ASSERT(result == wantedResult); // headers may come in different order on different OSs
 
     });

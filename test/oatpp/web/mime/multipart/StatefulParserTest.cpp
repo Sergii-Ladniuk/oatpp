@@ -25,7 +25,7 @@
 #include "StatefulParserTest.hpp"
 
 #include "oatpp/web/mime/multipart/PartList.hpp"
-#include "oatpp/web/mime/multipart/InMemoryPartReader.hpp"
+#include "oatpp/web/mime/multipart/InMemoryDataProvider.hpp"
 #include "oatpp/web/mime/multipart/Reader.hpp"
 
 #include "oatpp/core/data/stream/BufferStream.hpp"
@@ -64,7 +64,7 @@ namespace {
 
     oatpp::web::mime::multipart::StatefulParser parser(boundary, listener, nullptr);
 
-    oatpp::data::stream::BufferInputStream stream(text.getPtr(), text->getData(), text->getSize());
+    oatpp::data::stream::BufferInputStream stream(text.getPtr(), text->data(), text->size());
     std::unique_ptr<v_char8[]> buffer(new v_char8[step]);
     v_io_size size;
     while((size = stream.readSimple(buffer.get(), step)) != 0) {
@@ -80,18 +80,20 @@ namespace {
 
   void assertPartData(const std::shared_ptr<Part>& part, const oatpp::String& value) {
 
-    OATPP_ASSERT(part->getInMemoryData());
-    OATPP_ASSERT(part->getInMemoryData() == value);
+    auto payload = part->getPayload();
+    OATPP_ASSERT(payload)
+    OATPP_ASSERT(payload->getInMemoryData());
+    OATPP_ASSERT(payload->getInMemoryData() == value);
 
     v_int64 bufferSize = 16;
     std::unique_ptr<v_char8[]> buffer(new v_char8[bufferSize]);
 
     oatpp::data::stream::ChunkedBuffer stream;
-    oatpp::data::stream::transfer(part->getInputStream().get(), &stream, 0, buffer.get(), bufferSize);
+    oatpp::data::stream::transfer(payload->openInputStream(), &stream, 0, buffer.get(), bufferSize);
 
     oatpp::String readData = stream.toString();
 
-    OATPP_ASSERT(readData == part->getInMemoryData());
+    OATPP_ASSERT(readData == payload->getInMemoryData());
 
   }
 
@@ -101,12 +103,12 @@ void StatefulParserTest::onRun() {
 
   oatpp::String text = TEST_DATA_1;
 
-  for(v_int32 i = 1; i < text->getSize(); i++) {
+  for(v_int32 i = 1; i < text->size(); i++) {
 
     oatpp::web::mime::multipart::PartList multipart("12345");
 
     auto listener = std::make_shared<oatpp::web::mime::multipart::PartsParser>(&multipart);
-    listener->setDefaultPartReader(std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(128));
+    listener->setDefaultPartReader(oatpp::web::mime::multipart::createInMemoryPartReader(128));
 
     parseStepByStep(text, "12345", listener, i);
 

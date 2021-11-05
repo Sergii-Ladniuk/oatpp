@@ -43,6 +43,7 @@
 #include "oatpp/network/virtual_/server/ConnectionProvider.hpp"
 #include "oatpp/network/virtual_/Interface.hpp"
 
+#include "oatpp/core/data/resource/InMemoryData.hpp"
 #include "oatpp/core/macro/component.hpp"
 
 #include "oatpp-test/web/ClientServerTestRunner.hpp"
@@ -74,9 +75,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, serverConnectionProvider)([this] {
 
     if(m_port == 0) {
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ServerConnectionProvider>(
-        oatpp::network::virtual_::server::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::server::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -103,9 +104,9 @@ public:
   OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ClientConnectionProvider>, clientConnectionProvider)([this] {
 
     if(m_port == 0) {
-      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, interface);
+      OATPP_COMPONENT(std::shared_ptr<oatpp::network::virtual_::Interface>, _interface);
       return std::static_pointer_cast<oatpp::network::ClientConnectionProvider>(
-        oatpp::network::virtual_::client::ConnectionProvider::createShared(interface)
+        oatpp::network::virtual_::client::ConnectionProvider::createShared(_interface)
       );
     }
 
@@ -127,7 +128,7 @@ std::shared_ptr<PartList> createMultipart(const std::unordered_map<oatpp::String
     auto part = std::make_shared<oatpp::web::mime::multipart::Part>(partHeaders);
     multipart->writeNextPartSimple(part);
     part->putHeader("Content-Disposition", "form-data; name=\"" + pair.first + "\"");
-    part->setDataInfo(std::make_shared<oatpp::data::stream::BufferInputStream>(pair.second));
+    part->setPayload(std::make_shared<oatpp::data::resource::InMemoryData>(pair.second));
 
   }
 
@@ -216,7 +217,7 @@ void FullAsyncTest::onRun() {
         v_int32 numIterations = 10;
         oatpp::data::stream::ChunkedBuffer stream;
         for(v_int32 i = 0; i < numIterations; i++) {
-          stream.writeSimple(sample->getData(), sample->getSize());
+          stream.writeSimple(sample->data(), sample->size());
         }
         auto data = stream.toString();
         auto response = client->getChunked(sample, numIterations, connection);
@@ -241,8 +242,8 @@ void FullAsyncTest::onRun() {
         multipart = std::make_shared<oatpp::web::mime::multipart::PartList>(response->getHeaders());
 
         oatpp::web::mime::multipart::Reader multipartReader(multipart.get());
-        multipartReader.setPartReader("value1", std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(10));
-        multipartReader.setPartReader("value2", std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(10));
+        multipartReader.setPartReader("value1", oatpp::web::mime::multipart::createInMemoryPartReader(10));
+        multipartReader.setPartReader("value2", oatpp::web::mime::multipart::createInMemoryPartReader(10));
 
         response->transferBody(&multipartReader);
 
@@ -251,10 +252,13 @@ void FullAsyncTest::onRun() {
         auto part2 = multipart->getNamedPart("value2");
 
         OATPP_ASSERT(part1);
-        OATPP_ASSERT(part2);
+        OATPP_ASSERT(part1->getPayload());
 
-        OATPP_ASSERT(part1->getInMemoryData() == "Hello");
-        OATPP_ASSERT(part2->getInMemoryData() == "World");
+        OATPP_ASSERT(part2);
+        OATPP_ASSERT(part2->getPayload());
+
+        OATPP_ASSERT(part1->getPayload()->getInMemoryData() == "Hello");
+        OATPP_ASSERT(part2->getPayload()->getInMemoryData() == "World");
 
       }
 
