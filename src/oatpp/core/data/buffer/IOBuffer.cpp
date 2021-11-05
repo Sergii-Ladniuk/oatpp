@@ -24,9 +24,7 @@
 
 #include "IOBuffer.hpp"
 
-namespace oatpp { namespace data { namespace buffer {
-
-const v_buff_size IOBuffer::BUFFER_SIZE = 4096;
+namespace oatpp { namespace data{ namespace buffer {
 
 IOBuffer::IOBuffer()
   : m_entry(getBufferPool().obtain())

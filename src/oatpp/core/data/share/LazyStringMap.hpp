@@ -37,7 +37,7 @@ namespace oatpp { namespace data { namespace share {
  * Lazy String Map keeps keys, and values as memory label.
  * Once value is requested by user, the new memory block is allocated and value is copied to be stored permanently.
  * @tparam Key - one of: &id:oatpp::data::share::MemoryLabel;, &id:oatpp::data::share::StringKeyLabel;, &id:oatpp::data::share::StringKeyLabelCI;,
- * &id:oatpp::data::share::StringKeyLabelCI;.
+ * &id:oatpp::data::share::StringKeyLabelCI_FAST;.
  */
 template<typename Key, typename MapType>
 class LazyStringMapTemplate {
@@ -181,46 +181,6 @@ public:
   }
 
   /**
-   * Erases all occurrences of key and replaces them with a new entry
-   * @param key
-   * @param value
-   * @return - true if an entry was replaced, false if entry was only inserted.
-   */
-  bool putOrReplace(const Key& key, const StringKeyLabel& value) {
-
-    std::lock_guard<concurrency::SpinLock> lock(m_lock);
-
-    bool needsErase = m_map.find(key) != m_map.end();
-    if (needsErase) {
-      m_map.erase(key);
-    }
-    m_map.insert({key, value});
-    m_fullyInitialized = false;
-
-    return needsErase;
-
-  }
-
-  /**
-   * Erases all occurrences of key and replaces them with a new entry. Not thread-safe.
-   * @param key
-   * @param value
-   * @return - `true` if an entry was replaced, `false` if entry was only inserted.
-   */
-  bool putOrReplace_LockFree(const Key& key, const StringKeyLabel& value) {
-
-    bool needsErase = m_map.find(key) != m_map.end();
-    if (needsErase) {
-      m_map.erase(key);
-    }
-    m_map.insert({key, value});
-    m_fullyInitialized = false;
-
-    return needsErase;
-
-  }
-
-  /**
    * Get value as &id:oatpp::String;.
    * @param key
    * @return
@@ -242,7 +202,8 @@ public:
 
   /**
    * Get value as a memory label.
-   * @tparam T - one of: &id:oatpp::data::share::MemoryLabel;, &id:oatpp::data::share::StringKeyLabel;, &id:oatpp::data::share::StringKeyLabelCI;.
+   * @tparam T - one of: &id:oatpp::data::share::MemoryLabel;, &id:oatpp::data::share::StringKeyLabel;, &id:oatpp::data::share::StringKeyLabelCI;,
+   * &id:oatpp::data::share::StringKeyLabelCI_FAST;.
    * @param key
    * @return
    */
@@ -256,7 +217,7 @@ public:
     if(it != m_map.end()) {
       it->second.captureToOwnMemory();
       const auto& label = it->second;
-      return T(label.getMemoryHandle(), (const char*) label.getData(), label.getSize());
+      return T(label.getMemoryHandle(), label.getData(), label.getSize());
     }
 
     return T(nullptr, nullptr, 0);
@@ -266,7 +227,7 @@ public:
   /**
    * Get value as a memory label without allocating memory for value.
    * @tparam T - one of: &id:oatpp::data::share::MemoryLabel;, &id:oatpp::data::share::StringKeyLabel;, &id:oatpp::data::share::StringKeyLabelCI;,
-   * * &id:oatpp::data::share::StringKeyLabelCI;.
+   * * &id:oatpp::data::share::StringKeyLabelCI_FAST;.
    * @param key
    * @return
    */
@@ -279,7 +240,7 @@ public:
 
     if(it != m_map.end()) {
       const auto& label = it->second;
-      return T(label.getMemoryHandle(), (const char*)label.getData(), label.getSize());
+      return T(label.getMemoryHandle(), label.getData(), label.getSize());
     }
 
     return T(nullptr, nullptr, 0);

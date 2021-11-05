@@ -24,41 +24,44 @@
 
 #include "ConnectionPool.hpp"
 
+#include <thread>
+#include <chrono>
+
 namespace oatpp { namespace network {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ConnectionAcquisitionProxy
 
 v_io_size ConnectionAcquisitionProxy::write(const void *buff, v_buff_size count, async::Action& action) {
-  return _handle.object->write(buff, count, action);
+  return _obj->write(buff, count, action);
 }
 
 v_io_size ConnectionAcquisitionProxy::read(void *buff, v_buff_size count, async::Action& action) {
-  return _handle.object->read(buff, count, action);
+  return _obj->read(buff, count, action);
 }
 
 void ConnectionAcquisitionProxy::setOutputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  return _handle.object->setOutputStreamIOMode(ioMode);
+  return _obj->setOutputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode ConnectionAcquisitionProxy::getOutputStreamIOMode() {
-  return _handle.object->getOutputStreamIOMode();
+  return _obj->getOutputStreamIOMode();
 }
 
 void ConnectionAcquisitionProxy::setInputStreamIOMode(oatpp::data::stream::IOMode ioMode) {
-  return _handle.object->setInputStreamIOMode(ioMode);
+  return _obj->setInputStreamIOMode(ioMode);
 }
 
 oatpp::data::stream::IOMode ConnectionAcquisitionProxy::getInputStreamIOMode() {
-  return _handle.object->getInputStreamIOMode();
+  return _obj->getInputStreamIOMode();
 }
 
 oatpp::data::stream::Context& ConnectionAcquisitionProxy::getOutputStreamContext() {
-  return _handle.object->getOutputStreamContext();
+  return _obj->getOutputStreamContext();
 }
 
 oatpp::data::stream::Context& ConnectionAcquisitionProxy::getInputStreamContext() {
-  return _handle.object->getInputStreamContext();
+  return _obj->getInputStreamContext();
 }
 
 }}

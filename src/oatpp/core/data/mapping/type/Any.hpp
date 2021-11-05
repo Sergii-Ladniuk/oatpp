@@ -27,6 +27,8 @@
 
 #include "./Type.hpp"
 
+#include "oatpp/core/collection/LinkedList.hpp"
+
 #include "oatpp/core/base/memory/ObjectPool.hpp"
 #include "oatpp/core/base/Countable.hpp"
 
@@ -46,7 +48,7 @@ namespace __class {
     static const ClassId CLASS_ID;
 
     static Type *getType() {
-      static Type type(CLASS_ID);
+      static Type type(CLASS_ID, nullptr);
       return &type;
     }
 
@@ -105,7 +107,7 @@ public:
    */
   template<class T, class C>
   Any(const ObjectWrapper<T, C>& polymorph)
-    : ObjectWrapper(std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.getValueType()), __class::Any::getType())
+    : ObjectWrapper(std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.valueType), __class::Any::getType())
   {}
 
   /**
@@ -116,7 +118,7 @@ public:
    */
   template<class T, class C>
   void store(const ObjectWrapper<T, C>& polymorph) {
-    m_ptr = std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.getValueType());
+    m_ptr = std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.valueType);
   }
 
   /**
@@ -136,7 +138,7 @@ public:
 
     if(m_ptr) {
 
-      if(!m_ptr->type->extends(WrapperType::Class::getType())) {
+      if(m_ptr->type != WrapperType::Class::getType()) {
         throw std::runtime_error("[oatpp::data::mapping::type::Any::retrieve()]: Error. The value type doesn't match.");
       }
 
@@ -155,7 +157,7 @@ public:
 
   template<class T, class C>
   Any& operator=(const ObjectWrapper<T, C>& polymorph) {
-    m_ptr = std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.getValueType());
+    m_ptr = std::make_shared<AnyHandle>(polymorph.getPtr(), polymorph.valueType);
     return *this;
   }
 

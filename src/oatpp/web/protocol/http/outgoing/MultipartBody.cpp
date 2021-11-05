@@ -28,9 +28,10 @@
 namespace oatpp { namespace web { namespace protocol { namespace http { namespace outgoing {
 
 v_io_size MultipartBody::readBody(void *buffer, v_buff_size count, async::Action& action) {
-  const auto& stream = m_iterator.getPartInputStream();
+  const auto& part = m_iterator.get();
+  const auto& stream = part->getInputStream();
   if(!stream) {
-    OATPP_LOGW("[oatpp::web::protocol::http::outgoing::MultipartBody::MultipartReadCallback::readBody()]", "Warning. Part has no input stream.");
+    OATPP_LOGW("[oatpp::web::protocol::http::outgoing::MultipartBody::MultipartReadCallback::readBody()]", "Warning. Part has no input stream", m_state);
     return 0;
   }
   return stream->read(buffer, count, action);
@@ -134,7 +135,7 @@ v_io_size MultipartBody::readBoundary(const std::shared_ptr<Multipart>& multipar
       boundary = "\r\n--" + multipart->getBoundary() + "\r\n";
     }
 
-    readStream.reset(boundary.getPtr(), (p_char8) boundary->data(), boundary->size());
+    readStream.reset(boundary.getPtr(), boundary->getData(), boundary->getSize());
 
   }
 
@@ -161,7 +162,7 @@ v_io_size MultipartBody::readHeaders(const std::shared_ptr<Multipart>& multipart
     http::Utils::writeHeaders(part->getHeaders(), &stream);
     stream.writeSimple("\r\n", 2);
     auto str = stream.toString();
-    readStream.reset(str.getPtr(), (p_char8) str->data(), str->size());
+    readStream.reset(str.getPtr(), str->getData(), str->getSize());
 
   }
 
@@ -190,7 +191,7 @@ p_char8 MultipartBody::getKnownData() {
   return nullptr;
 }
 
-v_int64 MultipartBody::getKnownSize() {
+v_buff_size MultipartBody::getKnownSize() {
  return -1;
 }
 

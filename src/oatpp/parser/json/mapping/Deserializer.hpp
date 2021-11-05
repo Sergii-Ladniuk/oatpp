@@ -202,7 +202,7 @@ private:
         return nullptr;
       };
 
-      return oatpp::Void(list.getPtr(), list.getValueType());
+      return oatpp::Void(list.getPtr(), list.valueType);
     } else {
       caret.setError("[oatpp::parser::json::mapping::Deserializer::deserializeList()]: Error. '[' - expected", ERROR_CODE_ARRAY_SCOPE_OPEN);
       return nullptr;
@@ -266,7 +266,7 @@ private:
         return nullptr;
       }
 
-      return oatpp::Void(map.getPtr(), map.getValueType());
+      return oatpp::Void(map.getPtr(), map.valueType);
 
     } else {
       caret.setError("[oatpp::parser::json::mapping::Deserializer::deserializeKeyValue()]: Error. '{' - expected", ERROR_CODE_OBJECT_SCOPE_OPEN);

@@ -68,32 +68,35 @@ Serializer::Serializer(const std::shared_ptr<Config>& config)
 
 void Serializer::setSerializerMethod(const data::mapping::type::ClassId& classId, SerializerMethod method) {
   const v_uint32 id = classId.id;
-  if(id >= m_methods.size()) {
-    m_methods.resize(id + 1, nullptr);
+  if(id < m_methods.size()) {
+    m_methods[id] = method;
+  } else {
+    throw std::runtime_error("[oatpp::parser::json::mapping::Serializer::setSerializerMethod()]: Error. Unknown classId");
   }
-  m_methods[id] = method;
 }
 
-void Serializer::serializeString(data::stream::ConsistentOutputStream* stream, const char* data, v_buff_size size, v_uint32 escapeFlags) {
-  auto encodedValue = Utils::escapeString(data, size, escapeFlags);
+void Serializer::serializeString(data::stream::ConsistentOutputStream* stream, p_char8 data, v_buff_size size) {
+  auto encodedValue = Utils::escapeString(data, size, false);
   stream->writeCharSimple('\"');
   stream->writeSimple(encodedValue);
   stream->writeCharSimple('\"');
 }
 
 void Serializer::serializeString(Serializer* serializer,
-                                 data::stream::ConsistentOutputStream* stream,
-                                 const oatpp::Void& polymorph)
+                                  data::stream::ConsistentOutputStream* stream,
+                                  const oatpp::Void& polymorph)
 {
+
+  (void) serializer;
 
   if(!polymorph) {
     stream->writeSimple("null", 4);
     return;
   }
 
-  auto str = static_cast<std::string*>(polymorph.get());
+  auto str = static_cast<oatpp::base::StrBuffer*>(polymorph.get());
 
-  serializeString(stream, str->data(), str->size(), serializer->m_config->escapeFlags);
+  serializeString(stream, str->getData(), str->getSize());
 
 }
 
@@ -117,7 +120,7 @@ void Serializer::serializeEnum(Serializer* serializer,
                                const oatpp::Void& polymorph)
 {
   auto polymorphicDispatcher = static_cast<const data::mapping::type::__class::AbstractEnum::PolymorphicDispatcher*>(
-    polymorph.getValueType()->polymorphicDispatcher
+    polymorph.valueType->polymorphicDispatcher
   );
 
   data::mapping::type::EnumInterpreterError e = data::mapping::type::EnumInterpreterError::OK;
@@ -149,19 +152,16 @@ void Serializer::serializeObject(Serializer* serializer,
   stream->writeCharSimple('{');
 
   bool first = true;
-  auto dispatcher = static_cast<const oatpp::data::mapping::type::__class::AbstractObject::PolymorphicDispatcher*>(
-    polymorph.getValueType()->polymorphicDispatcher
-  );
+  auto dispatcher = static_cast<const oatpp::data::mapping::type::__class::AbstractObject::PolymorphicDispatcher*>(polymorph.valueType->polymorphicDispatcher);
   auto fields = dispatcher->getProperties()->getList();
   auto object = static_cast<oatpp::BaseObject*>(polymorph.get());
-  auto config = serializer->m_config;
 
   for (auto const& field : fields) {
 
     auto value = field->get(object);
-    if (value || config->includeNullFields || (field->info.required && config->alwaysIncludeRequired)) {
+    if(value || serializer->getConfig()->includeNullFields) {
       (first) ? first = false : stream->writeSimple(",", 1);
-      serializeString(stream, field->name, std::strlen(field->name), serializer->m_config->escapeFlags);
+      serializeString(stream, (p_char8)field->name, std::strlen(field->name));
       stream->writeSimple(":", 1);
       serializer->serialize(stream, value);
     }
@@ -175,19 +175,19 @@ void Serializer::serializeObject(Serializer* serializer,
 void Serializer::serialize(data::stream::ConsistentOutputStream* stream,
                             const oatpp::Void& polymorph)
 {
-  auto id = polymorph.getValueType()->classId.id;
+  auto id = polymorph.valueType->classId.id;
   auto& method = m_methods[id];
   if(method) {
     (*method)(this, stream, polymorph);
   } else {
 
-    auto* interpretation = polymorph.getValueType()->findInterpretation(m_config->enabledInterpretations);
+    auto* interpretation = polymorph.valueType->findInterpretation(m_config->enabledInterpretations);
     if(interpretation) {
       serialize(stream, interpretation->toInterpretation(polymorph));
     } else {
       throw std::runtime_error("[oatpp::parser::json::mapping::Serializer::serialize()]: "
                                "Error. No serialize method for type '" +
-                               std::string(polymorph.getValueType()->classId.name) + "'");
+                               std::string(polymorph.valueType->classId.name) + "'");
     }
 
   }

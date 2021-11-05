@@ -33,7 +33,7 @@ DbClient::DbClient(const std::shared_ptr<Executor>& executor)
   , m_typeResolver(executor->createTypeResolver())
 {}
 
-provider::ResourceHandle<Connection> DbClient::getConnection() {
+std::shared_ptr<Connection> DbClient::getConnection() {
   return m_executor->getConnection();
 }
 
@@ -55,19 +55,19 @@ data::share::StringTemplate DbClient::parseQueryTemplate(const oatpp::String& na
 
 std::shared_ptr<QueryResult> DbClient::execute(const data::share::StringTemplate& queryTemplate,
                                                const std::unordered_map<oatpp::String, oatpp::Void>& params,
-                                               const provider::ResourceHandle<Connection>& connection)
+                                               const std::shared_ptr<Connection>& connection)
 {
   return m_executor->execute(queryTemplate, params, m_typeResolver, connection);
 }
 
 std::shared_ptr<QueryResult> DbClient::executeQuery(const oatpp::String& query,
                                                     const std::unordered_map<oatpp::String, oatpp::Void>& params,
-                                                    const provider::ResourceHandle<Connection>& connection)
+                                                    const std::shared_ptr<Connection>& connection)
 {
   return m_executor->execute(query, params, m_typeResolver, connection);
 }
 
-Transaction DbClient::beginTransaction(const provider::ResourceHandle<Connection>& connection) {
+Transaction DbClient::beginTransaction(const std::shared_ptr<Connection>& connection) {
   return Transaction(m_executor, connection);
 }
 

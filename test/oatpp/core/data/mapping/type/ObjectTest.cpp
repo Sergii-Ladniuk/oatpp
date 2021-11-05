@@ -55,8 +55,6 @@ class DtoA : public oatpp::DTO {
 
 public:
 
-  DtoA() = default;
-
   DtoA(const String& pId)
     : id(pId)
   {}
@@ -83,14 +81,6 @@ class DtoC : public DtoA {
   DTO_FIELD(String, c);
 
   DTO_HC_EQ(a, b, c);
-
-};
-
-class DtoD : public DtoA {
-
-  DTO_INIT(DtoD, DtoA)
-
-  DTO_FIELD(Int32, a) = Int64(64);
 
 };
 
@@ -175,7 +165,7 @@ void ObjectTest::onRun() {
     Object<DtoA> a;
     OATPP_ASSERT(!a);
     OATPP_ASSERT(a == nullptr);
-    OATPP_ASSERT(a.getValueType()->classId.id == oatpp::data::mapping::type::__class::AbstractObject::CLASS_ID.id);
+    OATPP_ASSERT(a.valueType->classId.id == oatpp::data::mapping::type::__class::AbstractObject::CLASS_ID.id);
     OATPP_LOGI(TAG, "OK");
   }
 
@@ -307,27 +297,6 @@ void ObjectTest::onRun() {
     OATPP_ASSERT(set[c] == true);
     OATPP_ASSERT(set[d] == true);
     OATPP_ASSERT(set[e] == true);
-    OATPP_LOGI(TAG, "OK");
-  }
-
-  {
-    OATPP_LOGI(TAG, "Test 9...");
-    auto dto = DtoD::createShared();
-    OATPP_ASSERT(dto->a.getValueType() == oatpp::Int32::Class::getType());
-    OATPP_ASSERT(dto->a);
-    OATPP_ASSERT(dto->a == 64);
-    OATPP_LOGI(TAG, "OK");
-  }
-
-  {
-    OATPP_LOGI(TAG, "Test 10...");
-    OATPP_ASSERT(oatpp::Object<DtoA>::Class::getType()->extends(oatpp::Object<oatpp::DTO>::Class::getType()))
-    OATPP_ASSERT(oatpp::Object<DtoA>::Class::getType()->extends(oatpp::Object<DtoA>::Class::getType()))
-    OATPP_ASSERT(oatpp::Object<DtoB>::Class::getType()->extends(oatpp::Object<DtoA>::Class::getType()))
-    OATPP_ASSERT(oatpp::Object<DtoB>::Class::getType()->extends(oatpp::Object<oatpp::DTO>::Class::getType()))
-    OATPP_ASSERT(oatpp::Object<DtoC>::Class::getType()->extends(oatpp::Object<DtoA>::Class::getType()))
-    OATPP_ASSERT(oatpp::Object<DtoD>::Class::getType()->extends(oatpp::Object<DtoA>::Class::getType()))
-    OATPP_ASSERT(!oatpp::Object<DtoC>::Class::getType()->extends(oatpp::Object<DtoB>::Class::getType()))
     OATPP_LOGI(TAG, "OK");
   }
 

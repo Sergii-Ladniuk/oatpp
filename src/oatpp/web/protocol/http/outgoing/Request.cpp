@@ -68,33 +68,16 @@ bool Request::putHeaderIfNotExists(const oatpp::String& key, const oatpp::String
   return m_headers.putIfNotExists(key, value);
 }
 
-bool Request::putOrReplaceHeader(const String &key, const String &value) {
-  return m_headers.putOrReplace(key, value);
-}
-
-bool Request::putOrReplaceHeader_Unsafe(const data::share::StringKeyLabelCI& key,
-                                        const data::share::StringKeyLabel &value) {
-  return m_headers.putOrReplace(key, value);
-}
-
-void Request::putHeader_Unsafe(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value) {
+void Request::putHeader_Unsafe(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value) {
   m_headers.put(key, value);
 }
 
-bool Request::putHeaderIfNotExists_Unsafe(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value) {
+bool Request::putHeaderIfNotExists_Unsafe(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value) {
   return m_headers.putIfNotExists(key, value);
 }
 
-oatpp::String Request::getHeader(const oatpp::data::share::StringKeyLabelCI& headerName) const{
+oatpp::String Request::getHeader(const oatpp::data::share::StringKeyLabelCI_FAST& headerName) const{
   return m_headers.get(headerName);
-}
-
-void Request::putBundleData(const oatpp::String& key, const oatpp::Void& polymorph) {
-  m_bundle.put(key, polymorph);
-}
-
-const data::Bundle& Request::getBundle() const {
-  return m_bundle;
 }
 
 std::shared_ptr<Body> Request::getBody() {
@@ -175,14 +158,14 @@ oatpp::async::CoroutineStarter Request::sendAsync(std::shared_ptr<Request> _this
     std::shared_ptr<oatpp::data::stream::BufferOutputStream> m_headersWriteBuffer;
   public:
     
-    SendAsyncCoroutine(std::shared_ptr<Request> request,
+    SendAsyncCoroutine(const std::shared_ptr<Request>& request,
                        const std::shared_ptr<data::stream::OutputStream>& stream)
-      : m_this(std::move(request))
+      : m_this(request)
       , m_stream(stream)
       , m_headersWriteBuffer(std::make_shared<oatpp::data::stream::BufferOutputStream>())
     {}
     
-    Action act() override {
+    Action act() {
 
       v_buff_size bodySize = -1;
 
@@ -248,7 +231,7 @@ oatpp::async::CoroutineStarter Request::sendAsync(std::shared_ptr<Request> _this
     
   };
   
-  return SendAsyncCoroutine::start(std::move(_this), stream);
+  return SendAsyncCoroutine::start(_this, stream);
   
 }
   

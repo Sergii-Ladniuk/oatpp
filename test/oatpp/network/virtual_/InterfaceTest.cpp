@@ -45,9 +45,9 @@ namespace {
     oatpp::String m_dataSample;
   public:
     
-    ClientTask(const std::shared_ptr<Interface>& _interface,
+    ClientTask(const std::shared_ptr<Interface>& interface,
                const oatpp::String& dataSample)
-      : m_interface(_interface)
+      : m_interface(interface)
       , m_dataSample(dataSample)
     {}
     
@@ -55,8 +55,8 @@ namespace {
       auto submission = m_interface->connect();
       auto socket = submission->getSocket();
       
-      auto res = socket->writeExactSizeDataSimple(m_dataSample->data(), m_dataSample->size());
-      OATPP_ASSERT(res == m_dataSample->size());
+      auto res = socket->writeExactSizeDataSimple(m_dataSample->getData(), m_dataSample->getSize());
+      OATPP_ASSERT(res == m_dataSample->getSize());
       
       v_char8 buffer[100];
       oatpp::data::stream::ChunkedBuffer stream;
@@ -87,9 +87,9 @@ namespace {
     void run() {
       v_char8 buffer[100];
       oatpp::data::stream::ChunkedBuffer stream;
-      auto res = oatpp::data::stream::transfer(m_socket.get(), &stream, m_dataSample->size(), buffer, 100);
+      auto res = oatpp::data::stream::transfer(m_socket.get(), &stream, m_dataSample->getSize(), buffer, 100);
       
-      OATPP_ASSERT(res == m_dataSample->size());
+      OATPP_ASSERT(res == m_dataSample->getSize());
       OATPP_ASSERT(stream.getSize() == res);
       OATPP_ASSERT(stream.toString() == m_dataSample);
       
@@ -107,10 +107,10 @@ namespace {
     v_int32 m_numTasks;
   public:
     
-    Server(const std::shared_ptr<Interface>& _interface,
+    Server(const std::shared_ptr<Interface>& interface,
            const oatpp::String& dataSample,
            v_int32 numTasks)
-      : m_interface(_interface)
+      : m_interface(interface)
       , m_dataSample(dataSample)
       , m_numTasks(numTasks)
     {}
@@ -134,17 +134,17 @@ void InterfaceTest::onRun() {
   
   oatpp::String dataSample = "1234567890-=][poiuytrewqasdfghjkl;'/.,mnbvcxzzxcvbnm,./';lkjhgfdsaqwertyuiop][=-0987654321";
   
-  auto _interface = Interface::obtainShared("virtualhost");
-  auto bindLock = _interface->bind();
+  auto interface = Interface::obtainShared("virtualhost");
+  auto bindLock = interface->bind();
 
   v_int32 numTasks = 100;
   
   ThreadList threadList;
   
-  std::thread server(&Server::run, Server(_interface, dataSample, numTasks));
+  std::thread server(&Server::run, Server(interface, dataSample, numTasks));
   
   for(v_int32 i = 0; i < numTasks; i++) {
-    threadList.push_back(std::thread(&ClientTask::run, ClientTask(_interface, dataSample)));
+    threadList.push_back(std::thread(&ClientTask::run, ClientTask(interface, dataSample)));
   }
 
   for(auto& thread : threadList) {

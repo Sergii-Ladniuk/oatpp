@@ -26,7 +26,7 @@
 
 namespace oatpp { namespace orm {
 
-Transaction::Transaction(const base::ObjectHandle<Executor>& executor, const provider::ResourceHandle<Connection>& connection)
+Transaction::Transaction(const base::ObjectHandle<Executor>& executor, const std::shared_ptr<Connection>& connection)
   : m_executor(executor)
   , m_open(true)
 {
@@ -36,7 +36,7 @@ Transaction::Transaction(const base::ObjectHandle<Executor>& executor, const pro
   } else {
     m_open = false;
     throw std::runtime_error("[oatpp::orm::Transaction::Transaction()]: "
-                             "Error. Can't begin transaction - " + *res->getErrorMessage());
+                             "Error. Can't begin transaction - " + res->getErrorMessage()->std_str());
   }
 }
 
@@ -70,7 +70,7 @@ Transaction& Transaction::operator=(Transaction&& other) {
 
 }
 
-provider::ResourceHandle<Connection> Transaction::getConnection() const {
+std::shared_ptr<Connection> Transaction::getConnection() const {
   return m_connection;
 }
 

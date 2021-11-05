@@ -26,6 +26,7 @@
 #define oatpp_async_worker_TimerWorker_hpp
 
 #include "./Worker.hpp"
+#include "oatpp/core/collection/LinkedList.hpp"
 #include "oatpp/core/concurrency/SpinLock.hpp"
 
 #include <thread>

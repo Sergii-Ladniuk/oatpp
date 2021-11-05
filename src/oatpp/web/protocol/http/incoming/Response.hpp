@@ -27,7 +27,6 @@
 
 #include "oatpp/web/protocol/http/Http.hpp"
 #include "oatpp/web/protocol/http/incoming/BodyDecoder.hpp"
-#include "oatpp/core/data/Bundle.hpp"
 
 namespace oatpp { namespace web { namespace protocol { namespace http { namespace incoming {
 
@@ -52,8 +51,6 @@ private:
   std::shared_ptr<const http::incoming::BodyDecoder> m_bodyDecoder;
   
   std::shared_ptr<oatpp::data::stream::IOStream> m_connection;
-
-  data::Bundle m_bundle;
   
 public:
   /**
@@ -120,72 +117,32 @@ public:
   bool putHeaderIfNotExists(const oatpp::String& key, const oatpp::String& value);
 
   /**
-   * Replaces or adds header.
-   * @param key - &id:oatpp::String;.
-   * @param value - &id:oatpp::String;.
-   * @return - `true` if header was replaces, `false` if header was added.
-   */
-  bool putOrReplaceHeader(const oatpp::String& key, const oatpp::String& value);
-
-  /**
-   * Replaces or adds header.
-   * @param key - &id:oatpp::data::share::StringKeyLabelCI;.
-   * @param value - &id:oatpp::data::share::StringKeyLabel;.
-   * @return - `true` if header was replaces, `false` if header was added.
-   */
-  bool putOrReplaceHeader_Unsafe(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value);
-
-  /**
    * Add http header.
-   * @param key - &id:oatpp::data::share::StringKeyLabelCI;.
+   * @param key - &id:oatpp::data::share::StringKeyLabelCI_FAST;.
    * @param value - &id:oatpp::data::share::StringKeyLabel;.
    */
-  void putHeader_Unsafe(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value);
+  void putHeader_Unsafe(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value);
 
   /**
    * Add http header if not already exists.
-   * @param key - &id:oatpp::data::share::StringKeyLabelCI;.
+   * @param key - &id:oatpp::data::share::StringKeyLabelCI_FAST;.
    * @param value - &id:oatpp::data::share::StringKeyLabel;.
    * @return - `true` if header was added.
    */
-  bool putHeaderIfNotExists_Unsafe(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value);
+  bool putHeaderIfNotExists_Unsafe(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value);
 
   /**
    * Get header value
-   * @param headerName - &id:oatpp::data::share::StringKeyLabelCI;.
+   * @param headerName - &id:oatpp::data::share::StringKeyLabelCI_FAST;.
    * @return - &id:oatpp::String;.
    */
-  oatpp::String getHeader(const oatpp::data::share::StringKeyLabelCI& headerName) const;
-
-  /**
-   * Put data to bundle.
-   * @param key
-   * @param polymorph
-   */
-  void putBundleData(const oatpp::String& key, const oatpp::Void& polymorph);
-
-  /**
-   * Get data from bundle by key.
-   * @tparam WrapperType
-   * @param key
-   * @return
-   */
-  template<typename WrapperType>
-  WrapperType getBundleData(const oatpp::String& key) const {
-    return m_bundle.template get<WrapperType>(key);
-  }
-
-  /**
-   * Get bundle object.
-   * @return
-   */
-  const data::Bundle& getBundle() const;
+  oatpp::String getHeader(const oatpp::data::share::StringKeyLabelCI_FAST& headerName) const;
 
   /**
    * Get raw body stream.
    * @return - raw body stream as &id:oatpp::data::stream::InputStream;.
    */
-  std::shared_ptr<data::stream::InputStream> getBodyStream() const;
+  std::shared_ptr<oatpp::data::stream::InputStream> getBodyStream() const;
 
   /**
    * Get body decoder configured for this response.
@@ -198,14 +155,14 @@ public:
    * Read body chunk by chunk and pass chunks to the `writeCallback`.
    * @param writeCallback - &id:oatpp::data::stream::WriteCallback;.
    */
-  void transferBody(const base::ObjectHandle<data::stream::WriteCallback>& writeCallback) const;
+  void transferBody(data::stream::WriteCallback* writeCallback) const;
 
   /**
    * Decode and transfer body to toStream.
    * Use case example - stream huge body directly to file using relatively small buffer.
    * @param toStream - pointer to &id:oatpp::data::stream::OutputStream;.
    */
-  void transferBodyToStream(const base::ObjectHandle<data::stream::OutputStream>& toStream) const;
+  void transferBodyToStream(oatpp::data::stream::OutputStream* toStream) const;
 
   /**
    * Decode and read body to &id:oatpp::String;.
@@ -220,8 +177,8 @@ public:
    * @return - deserialized DTO object.
    */
   template<class Wrapper>
-  Wrapper readBodyToDto(const base::ObjectHandle<data::mapping::ObjectMapper>& objectMapper) const {
-    return m_bodyDecoder->decodeToDto<Wrapper>(m_headers, m_bodyStream.get(), m_connection.get(), objectMapper.get());
+  Wrapper readBodyToDto(oatpp::data::mapping::ObjectMapper* objectMapper) const {
+    return m_bodyDecoder->decodeToDto<Wrapper>(m_headers, m_bodyStream.get(), objectMapper);
   }
   
   // Async
@@ -240,14 +197,14 @@ public:
    * @param toStream - `std::shared_ptr` to &id:oatpp::data::stream::OutputStream;.
    * @return - &id:oatpp::async::CoroutineStarter;.
    */
-  oatpp::async::CoroutineStarter transferBodyToStreamAsync(const std::shared_ptr<data::stream::OutputStream>& toStream) const;
+  oatpp::async::CoroutineStarter transferBodyToStreamAsync(const std::shared_ptr<oatpp::data::stream::OutputStream>& toStream) const;
 
   /**
    * Same as &l:Response::readBodyToString (); but Async.
    * @return - &id:oatpp::async::CoroutineStarterForResult;.
    */
   oatpp::async::CoroutineStarterForResult<const oatpp::String&> readBodyToStringAsync() const {
-    return m_bodyDecoder->decodeToStringAsync(m_headers, m_bodyStream, m_connection);
+    return m_bodyDecoder->decodeToStringAsync(m_headers, m_bodyStream);
   }
 
   /**
@@ -258,8 +215,8 @@ public:
    */
   template<class Wrapper>
   oatpp::async::CoroutineStarterForResult<const Wrapper&>
-  readBodyToDtoAsync(const std::shared_ptr<data::mapping::ObjectMapper>& objectMapper) const {
-    return m_bodyDecoder->decodeToDtoAsync<Wrapper>(m_headers, m_bodyStream, m_connection, objectMapper);
+  readBodyToDtoAsync(const std::shared_ptr<oatpp::data::mapping::ObjectMapper>& objectMapper) const {
+    return m_bodyDecoder->decodeToDtoAsync<Wrapper>(m_headers, m_bodyStream, objectMapper);
   }
   
 };

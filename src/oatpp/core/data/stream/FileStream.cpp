@@ -32,24 +32,14 @@ namespace oatpp { namespace data{ namespace stream {
 
 oatpp::data::stream::DefaultInitializedContext FileInputStream::DEFAULT_CONTEXT(data::stream::StreamType::STREAM_FINITE);
 
-FileInputStream::FileInputStream(FileInputStream&& other)
-  : m_file(other.m_file)
-  , m_ownsFile(other.m_ownsFile)
-  , m_ioMode(other.m_ioMode)
-{
-  other.m_file = nullptr;
-  other.m_ownsFile = false;
-}
-
-FileInputStream::FileInputStream(std::FILE* file, bool ownsFile, const std::shared_ptr<void>& captureData)
+FileInputStream::FileInputStream(std::FILE* file, bool ownsFile)
   : m_file(file)
   , m_ownsFile(ownsFile)
   , m_ioMode(IOMode::ASYNCHRONOUS)
-  , m_capturedData(captureData)
 {}
 
-FileInputStream::FileInputStream(const char* filename, const std::shared_ptr<void>& captureData)
-  : FileInputStream(std::fopen(filename, "rb"), true, captureData)
+FileInputStream::FileInputStream(const char* filename)
+  : FileInputStream(std::fopen(filename, "rb"), true)
 {
   if(!m_file) {
     OATPP_LOGE("[oatpp::data::stream::FileInputStream::FileInputStream(filename)]", "Error. Can't open file '%s'.", filename);
@@ -58,7 +48,9 @@ FileInputStream::FileInputStream(const char* filename, const std::shared_ptr<voi
 }
 
 FileInputStream::~FileInputStream() {
-  this->close();
+  if(m_ownsFile && m_file) {
+    std::fclose(m_file);
+  }
 }
 
 std::FILE* FileInputStream::getFile() {
@@ -67,10 +59,7 @@ std::FILE* FileInputStream::getFile() {
 
 v_io_size FileInputStream::read(void *data, v_buff_size count, async::Action& action) {
   (void) action;
-  if(m_file != nullptr) {
-    return std::fread(data, 1, count, m_file);
-  }
-  return oatpp::IOError::BROKEN_PIPE;
+  return std::fread(data, 1, count, m_file);
 }
 
 void FileInputStream::setInputStreamIOMode(IOMode ioMode) {
@@ -85,51 +74,19 @@ Context& FileInputStream::getInputStreamContext() {
   return DEFAULT_CONTEXT;
 }
 
-void FileInputStream::close() {
-  if(m_ownsFile && m_file) {
-    std::fclose(m_file);
-  }
-}
-
-FileInputStream& FileInputStream::operator=(FileInputStream&& other) {
-
-  if(this != &other) {
-    close();
-  }
-
-  m_file = other.m_file;
-  m_ownsFile = other.m_ownsFile;
-  m_ioMode = other.m_ioMode;
-
-  other.m_file = nullptr;
-  other.m_ownsFile = false;
-
-  return *this;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FileOutputStream
 
 oatpp::data::stream::DefaultInitializedContext FileOutputStream::DEFAULT_CONTEXT(data::stream::StreamType::STREAM_FINITE);
 
-FileOutputStream::FileOutputStream(FileOutputStream&& other)
-  : m_file(other.m_file)
-  , m_ownsFile(other.m_ownsFile)
-  , m_ioMode(other.m_ioMode)
-{
-  other.m_file = nullptr;
-  other.m_ownsFile = false;
-}
-
-FileOutputStream::FileOutputStream(std::FILE* file, bool ownsFile, const std::shared_ptr<void>& captureData)
+FileOutputStream::FileOutputStream(std::FILE* file, bool ownsFile)
   : m_file(file)
   , m_ownsFile(ownsFile)
   , m_ioMode(IOMode::ASYNCHRONOUS)
-  , m_capturedData(captureData)
 {}
 
-FileOutputStream::FileOutputStream(const char* filename, const char* mode, const std::shared_ptr<void>& captureData)
-  : FileOutputStream(std::fopen(filename, mode), true, captureData)
+FileOutputStream::FileOutputStream(const char* filename, const char* mode)
+  : FileOutputStream(std::fopen(filename, mode), true)
 {
   if(!m_file) {
     OATPP_LOGE("[oatpp::data::stream::FileOutputStream::FileOutputStream(filename, mode)]", "Error. Can't open file '%s'.", filename);
@@ -138,7 +95,9 @@ FileOutputStream::FileOutputStream(const char* filename, const char* mode, const
 }
 
 FileOutputStream::~FileOutputStream() {
-  this->close();
+  if(m_ownsFile && m_file) {
+    std::fclose(m_file);
+  }
 }
 
 std::FILE* FileOutputStream::getFile() {
@@ -160,28 +119,6 @@ IOMode FileOutputStream::getOutputStreamIOMode() {
 
 Context& FileOutputStream::getOutputStreamContext() {
   return DEFAULT_CONTEXT;
-}
-
-void FileOutputStream::close() {
-  if(m_ownsFile && m_file) {
-    std::fclose(m_file);
-  }
-}
-
-FileOutputStream& FileOutputStream::operator=(FileOutputStream&& other) {
-
-  if(this != &other) {
-    close();
-  }
-
-  m_file = other.m_file;
-  m_ownsFile = other.m_ownsFile;
-  m_ioMode = other.m_ioMode;
-
-  other.m_file = nullptr;
-  other.m_ownsFile = false;
-
-  return *this;
 }
 
 }}}

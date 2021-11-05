@@ -72,13 +72,13 @@ HttpProcessor::Components::Components(const std::shared_ptr<HttpRouter>& pRouter
 // Other
 
 HttpProcessor::ProcessingResources::ProcessingResources(const std::shared_ptr<Components>& pComponents,
-                                                        const provider::ResourceHandle<oatpp::data::stream::IOStream>& pConnection)
+                                                        const std::shared_ptr<oatpp::data::stream::IOStream>& pConnection)
   : components(pComponents)
   , connection(pConnection)
   , headersInBuffer(components->config->headersInBufferInitial)
   , headersOutBuffer(components->config->headersOutBufferInitial)
   , headersReader(&headersInBuffer, components->config->headersReaderChunkSize, components->config->headersReaderMaxSize)
-  , inStream(data::stream::InputStreamBufferedProxy::createShared(connection.object, std::make_shared<std::string>(data::buffer::IOBuffer::BUFFER_SIZE, 0)))
+  , inStream(data::stream::InputStreamBufferedProxy::createShared(connection, base::StrBuffer::createShared(data::buffer::IOBuffer::BUFFER_SIZE)))
 {}
 
 std::shared_ptr<protocol::http::outgoing::Response>
@@ -147,7 +147,7 @@ HttpProcessor::ConnectionState HttpProcessor::processNextRequest(ProcessingResou
     connectionState = ConnectionState::CLOSING;
   } else {
 
-    request = protocol::http::incoming::Request::createShared(resources.connection.object,
+    request = protocol::http::incoming::Request::createShared(resources.connection,
                                                               headersReadResult.startingLine,
                                                               headersReadResult.headers,
                                                               resources.inStream,
@@ -209,7 +209,7 @@ HttpProcessor::ConnectionState HttpProcessor::processNextRequest(ProcessingResou
   auto contentEncoderProvider =
     protocol::http::utils::CommunicationUtils::selectEncoder(request, resources.components->contentEncodingProviders);
 
-  response->send(resources.connection.object.get(), &resources.headersOutBuffer, contentEncoderProvider.get());
+  response->send(resources.connection.get(), &resources.headersOutBuffer, contentEncoderProvider.get());
 
   return connectionState;
 
@@ -219,40 +219,14 @@ HttpProcessor::ConnectionState HttpProcessor::processNextRequest(ProcessingResou
 // Task
 
 HttpProcessor::Task::Task(const std::shared_ptr<Components>& components,
-                          const provider::ResourceHandle<oatpp::data::stream::IOStream>& connection,
-                          TaskProcessingListener* taskListener)
+                          const std::shared_ptr<oatpp::data::stream::IOStream>& connection)
   : m_components(components)
   , m_connection(connection)
-  , m_taskListener(taskListener)
-{
-  m_taskListener->onTaskStart(m_connection);
-}
-
-HttpProcessor::Task::Task(HttpProcessor::Task &&other)
-  : m_components(std::move(other.m_components))
-  , m_connection(std::move(other.m_connection))
-  , m_taskListener(other.m_taskListener)
-{
-  other.m_taskListener = nullptr;
-}
-
-HttpProcessor::Task::~Task() {
-  if (m_taskListener != nullptr) {
-    m_taskListener->onTaskEnd(m_connection);
-  }
-}
-
-HttpProcessor::Task &HttpProcessor::Task::operator=(HttpProcessor::Task &&other) {
-  m_components = std::move(other.m_components);
-  m_connection = std::move(other.m_connection);
-  m_taskListener = other.m_taskListener;
-  other.m_taskListener = nullptr;
-  return *this;
-}
+{}
 
 void HttpProcessor::Task::run(){
 
-  m_connection.object->initContexts();
+  m_connection->initContexts();
 
   ProcessingResources resources(m_components, m_connection);
 
@@ -276,26 +250,18 @@ void HttpProcessor::Task::run(){
 // HttpProcessor::Coroutine
 
 HttpProcessor::Coroutine::Coroutine(const std::shared_ptr<Components>& components,
-                                    const provider::ResourceHandle<oatpp::data::stream::IOStream>& connection,
-                                    TaskProcessingListener* taskListener)
+                                    const std::shared_ptr<oatpp::data::stream::IOStream>& connection)
   : m_components(components)
   , m_connection(connection)
   , m_headersInBuffer(components->config->headersInBufferInitial)
   , m_headersReader(&m_headersInBuffer, components->config->headersReaderChunkSize, components->config->headersReaderMaxSize)
   , m_headersOutBuffer(std::make_shared<oatpp::data::stream::BufferOutputStream>(components->config->headersOutBufferInitial))
-  , m_inStream(data::stream::InputStreamBufferedProxy::createShared(m_connection.object, std::make_shared<std::string>(data::buffer::IOBuffer::BUFFER_SIZE, 0)))
+  , m_inStream(data::stream::InputStreamBufferedProxy::createShared(m_connection, base::StrBuffer::createShared(data::buffer::IOBuffer::BUFFER_SIZE)))
   , m_connectionState(ConnectionState::ALIVE)
-  , m_taskListener(taskListener)
-{
-  m_taskListener->onTaskStart(m_connection);
-}
-
-HttpProcessor::Coroutine::~Coroutine() {
-  m_taskListener->onTaskEnd(m_connection);
-}
+{}
 
 HttpProcessor::Coroutine::Action HttpProcessor::Coroutine::act() {
-  return m_connection.object->initContextsAsync().next(yieldTo(&HttpProcessor::Coroutine::parseHeaders));
+  return m_connection->initContextsAsync().next(yieldTo(&HttpProcessor::Coroutine::parseHeaders));
 }
 
 HttpProcessor::Coroutine::Action HttpProcessor::Coroutine::parseHeaders() {
@@ -304,7 +270,7 @@ HttpProcessor::Coroutine::Action HttpProcessor::Coroutine::parseHeaders() {
 
 oatpp::async::Action HttpProcessor::Coroutine::onHeadersParsed(const RequestHeadersReader::Result& headersReadResult) {
 
-  m_currentRequest = protocol::http::incoming::Request::createShared(m_connection.object,
+  m_currentRequest = protocol::http::incoming::Request::createShared(m_connection,
                                                                      headersReadResult.startingLine,
                                                                      headersReadResult.headers,
                                                                      m_inStream,
@@ -387,7 +353,7 @@ HttpProcessor::Coroutine::Action HttpProcessor::Coroutine::onResponseFormed() {
   auto contentEncoderProvider =
     protocol::http::utils::CommunicationUtils::selectEncoder(m_currentRequest, m_components->contentEncodingProviders);
 
-  return protocol::http::outgoing::Response::sendAsync(m_currentResponse, m_connection.object, m_headersOutBuffer, contentEncoderProvider)
+  return protocol::http::outgoing::Response::sendAsync(m_currentResponse, m_connection, m_headersOutBuffer, contentEncoderProvider)
          .next(yieldTo(&HttpProcessor::Coroutine::onRequestDone));
 
 }

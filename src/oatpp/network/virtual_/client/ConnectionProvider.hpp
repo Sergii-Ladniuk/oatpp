@@ -37,17 +37,6 @@ namespace oatpp { namespace network { namespace virtual_ { namespace client {
  */
 class ConnectionProvider : public oatpp::network::ClientConnectionProvider {
 private:
-
-  class ConnectionInvalidator : public provider::Invalidator<data::stream::IOStream> {
-  public:
-
-    void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
-
-  };
-
-private:
-  std::shared_ptr<ConnectionInvalidator> m_invalidator;
-private:
   std::shared_ptr<virtual_::Interface> m_interface;
   v_io_size m_maxAvailableToRead;
   v_io_size m_maxAvailableToWrite;
@@ -57,14 +46,14 @@ public:
    * Constructor.
    * @param interface - &id:oatpp::network::virtual_::Interface;.
    */
-  ConnectionProvider(const std::shared_ptr<virtual_::Interface>& _interface);
+  ConnectionProvider(const std::shared_ptr<virtual_::Interface>& interface);
 
   /**
    * Create shared ConnectionProvider.
    * @param interface - &id:oatpp::network::virtual_::Interface;.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
-  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<virtual_::Interface>& _interface);
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<virtual_::Interface>& interface);
 
   /**
    * Limit the available amount of bytes to read from socket and limit the available amount of bytes to write to socket. <br>
@@ -86,13 +75,22 @@ public:
    * Get connection.
    * @return - `std::shared_ptr` to &id:oatpp::data::stream::IOStream;.
    */
-  provider::ResourceHandle<data::stream::IOStream> get() override;
+  std::shared_ptr<data::stream::IOStream> get() override;
 
   /**
    * Get connection in asynchronous manner.
    * @return - &id:oatpp::async::CoroutineStarterForResult;.
    */
-  oatpp::async::CoroutineStarterForResult<const provider::ResourceHandle<data::stream::IOStream>&> getAsync() override;
+  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> getAsync() override;
+
+  /**
+   * Does nothing.
+   * @param connection
+   */
+  void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override {
+    (void)connection;
+    // DO Nothing.
+  }
 
 };
   

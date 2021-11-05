@@ -9,14 +9,12 @@
 #include "oatpp/web/server/api/ApiControllerTest.hpp"
 #include "oatpp/web/server/handler/AuthorizationHandlerTest.hpp"
 #include "oatpp/web/server/HttpRouterTest.hpp"
-#include "oatpp/web/server/ServerStopTest.hpp"
 #include "oatpp/web/mime/multipart/StatefulParserTest.hpp"
 
 #include "oatpp/network/virtual_/PipeTest.hpp"
 #include "oatpp/network/virtual_/InterfaceTest.hpp"
 #include "oatpp/network/UrlTest.hpp"
 #include "oatpp/network/ConnectionPoolTest.hpp"
-#include "oatpp/network/monitor/ConnectionMonitorTest.hpp"
 
 #include "oatpp/parser/json/mapping/DeserializerTest.hpp"
 #include "oatpp/parser/json/mapping/DTOMapperPerfTest.hpp"
@@ -29,7 +27,6 @@
 
 #include "oatpp/core/parser/CaretTest.hpp"
 #include "oatpp/core/provider/PoolTest.hpp"
-#include "oatpp/core/provider/PoolTemplateTest.hpp"
 #include "oatpp/core/async/LockTest.hpp"
 
 #include "oatpp/core/data/mapping/type/UnorderedMapTest.hpp"
@@ -47,8 +44,6 @@
 #include "oatpp/core/data/mapping/type/InterpretationTest.hpp"
 #include "oatpp/core/data/mapping/TypeResolverTest.hpp"
 
-#include "oatpp/core/data/resource/InMemoryDataTest.hpp"
-
 #include "oatpp/core/data/stream/BufferStreamTest.hpp"
 #include "oatpp/core/data/stream/ChunkedBufferTest.hpp"
 #include "oatpp/core/data/share/LazyStringMapTest.hpp"
@@ -56,6 +51,7 @@
 #include "oatpp/core/data/share/MemoryLabelTest.hpp"
 #include "oatpp/core/data/buffer/ProcessorTest.hpp"
 
+#include "oatpp/core/base/collection/LinkedListTest.hpp"
 #include "oatpp/core/base/memory/MemoryPoolTest.hpp"
 #include "oatpp/core/base/memory/PerfTest.hpp"
 #include "oatpp/core/base/CommandLineArgumentsTest.hpp"
@@ -64,6 +60,7 @@
 #include "oatpp/core/async/Coroutine.hpp"
 #include "oatpp/core/Types.hpp"
 
+#include "oatpp/core/concurrency/SpinLock.hpp"
 #include "oatpp/core/base/Environment.hpp"
 
 #include <iostream>
@@ -79,19 +76,13 @@ void runTests() {
   OATPP_LOGD("Tests", "action size=%d", sizeof(oatpp::async::Action));
   OATPP_LOGD("Tests", "class count=%d", oatpp::data::mapping::type::ClassId::getClassCount());
 
-  auto names = oatpp::data::mapping::type::ClassId::getRegisteredClassNames();
-  v_int32 i = 0;
-  for(auto& name : names) {
-    OATPP_LOGD("CLASS", "%d --> '%s'", i, name);
-    i ++;
-  }
-
-
   OATPP_RUN_TEST(oatpp::test::base::CommandLineArgumentsTest);
   OATPP_RUN_TEST(oatpp::test::base::LoggerTest);
 
   OATPP_RUN_TEST(oatpp::test::memory::MemoryPoolTest);
   OATPP_RUN_TEST(oatpp::test::memory::PerfTest);
+
+  OATPP_RUN_TEST(oatpp::test::collection::LinkedListTest);
 
   OATPP_RUN_TEST(oatpp::test::core::data::share::MemoryLabelTest);
   OATPP_RUN_TEST(oatpp::test::core::data::share::LazyStringMapTest);
@@ -104,9 +95,7 @@ void runTests() {
 
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::ObjectWrapperTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::TypeTest);
-
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::StringTest);
-
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::PrimitiveTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::ListTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::VectorTest);
@@ -115,19 +104,15 @@ void runTests() {
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::UnorderedMapTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::AnyTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::EnumTest);
-
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::ObjectTest);
 
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::type::InterpretationTest);
   OATPP_RUN_TEST(oatpp::test::core::data::mapping::TypeResolverTest);
 
-  OATPP_RUN_TEST(oatpp::test::core::data::resource::InMemoryDataTest);
-
   OATPP_RUN_TEST(oatpp::test::async::LockTest);
   OATPP_RUN_TEST(oatpp::test::parser::CaretTest);
 
   OATPP_RUN_TEST(oatpp::test::core::provider::PoolTest);
-  OATPP_RUN_TEST(oatpp::test::core::provider::PoolTemplateTest);
 
   OATPP_RUN_TEST(oatpp::test::parser::json::mapping::EnumTest);
 
@@ -141,8 +126,9 @@ void runTests() {
   OATPP_RUN_TEST(oatpp::test::encoding::UnicodeTest);
 
   OATPP_RUN_TEST(oatpp::test::network::UrlTest);
+
   OATPP_RUN_TEST(oatpp::test::network::ConnectionPoolTest);
-  OATPP_RUN_TEST(oatpp::test::network::monitor::ConnectionMonitorTest);
+
   OATPP_RUN_TEST(oatpp::test::network::virtual_::PipeTest);
   OATPP_RUN_TEST(oatpp::test::network::virtual_::InterfaceTest);
 
@@ -153,16 +139,6 @@ void runTests() {
   OATPP_RUN_TEST(oatpp::test::web::server::HttpRouterTest);
   OATPP_RUN_TEST(oatpp::test::web::server::api::ApiControllerTest);
   OATPP_RUN_TEST(oatpp::test::web::server::handler::AuthorizationHandlerTest);
-
-  {
-
-    oatpp::test::web::server::ServerStopTest test_virtual(0);
-    test_virtual.run();
-
-    oatpp::test::web::server::ServerStopTest test_port(8000);
-    test_port.run();
-
-  }
 
   {
 
@@ -229,21 +205,21 @@ void runTests() {
 }
 
 int main() {
-
+  
   oatpp::base::Environment::init();
-
+  
   runTests();
-
+  
   /* Print how much objects were created during app running, and what have left-probably leaked */
   /* Disable object counting for release builds using '-D OATPP_DISABLE_ENV_OBJECT_COUNTERS' flag for better performance */
   std::cout << "\nEnvironment:\n";
   std::cout << "objectsCount = " << oatpp::base::Environment::getObjectsCount() << "\n";
   std::cout << "objectsCreated = " << oatpp::base::Environment::getObjectsCreated() << "\n\n";
-
+  
   OATPP_ASSERT(oatpp::base::Environment::getObjectsCount() == 0);
-
+  
   oatpp::base::Environment::destroy();
-
+  
   return 0;
 }
 

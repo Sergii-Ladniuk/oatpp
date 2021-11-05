@@ -29,7 +29,7 @@
 
 namespace oatpp { namespace parser { namespace json{
 
-v_buff_size Utils::calcEscapedStringSize(const char* data, v_buff_size size, v_buff_size& safeSize, v_uint32 flags) {
+v_buff_size Utils::calcEscapedStringSize(p_char8 data, v_buff_size size, v_buff_size& safeSize) {
   v_buff_size result = 0;
   v_buff_size i = 0;
   safeSize = size;
@@ -37,39 +37,18 @@ v_buff_size Utils::calcEscapedStringSize(const char* data, v_buff_size size, v_b
     v_char8 a = data[i];
     if(a < 32) {
       i ++;
-
-      switch (a) {
-
-        case '\b':
-        case '\f':
-        case '\n':
-        case '\r':
-        case '\t': result += 2; break; // '\n'
-
-        default:
-          result += 6; // '\uFFFF' - 6 chars
-          break;
-
+      if(a == '\b' || a == '\f' || a == '\n' || a == '\r' || a == '\t'){
+        result += 2; // '\n'
+      } else {
+        result += 6; // '\uFFFF' - 6 chars
       }
-
     } else if(a < 128){
       i ++;
-
-      switch (a) {
-        case '\"':
-        case '\\': result += 2; break; // '\/'
-
-        case '/':
-          result ++;
-          if((flags & FLAG_ESCAPE_SOLIDUS) > 0) result ++;
-          break;
-
-        default:
-          result ++;
-          break;
-
+      if(a == '\"' || a == '\\' || a == '/'){
+        result += 2; // '\/'
+      } else {
+        result ++;
       }
-
     } else {
       v_buff_size charSize = oatpp::encoding::Unicode::getUtf8CharSequenceLength(a);
       if(charSize != 0) {
@@ -94,7 +73,7 @@ v_buff_size Utils::calcEscapedStringSize(const char* data, v_buff_size size, v_b
   return result;
 }
 
-v_buff_size Utils::calcUnescapedStringSize(const char* data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition) {
+v_buff_size Utils::calcUnescapedStringSize(p_char8 data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition) {
   errorCode = 0;
   v_buff_size result = 0;
   v_buff_size i = 0;
@@ -189,7 +168,7 @@ v_buff_size Utils::calcUnescapedStringSize(const char* data, v_buff_size size, v
   return result;
 }
   
-v_buff_size Utils::escapeUtf8Char(const char* sequence, p_char8 buffer){
+v_buff_size Utils::escapeUtf8Char(p_char8 sequence, p_char8 buffer){
   v_buff_size length;
   v_int32 code = oatpp::encoding::Unicode::encodeUtf8Char(sequence, length);
   if(code < 0x00010000) {
@@ -216,15 +195,15 @@ v_buff_size Utils::escapeUtf8Char(const char* sequence, p_char8 buffer){
     return 11;
   }
 }
-
-oatpp::String Utils::escapeString(const char* data, v_buff_size size, v_uint32 flags) {
+  
+oatpp::String Utils::escapeString(p_char8 data, v_buff_size size, bool copyAsOwnData) {
   v_buff_size safeSize;
-  v_buff_size escapedSize = calcEscapedStringSize(data, size, safeSize, flags);
+  v_buff_size escapedSize = calcEscapedStringSize(data, size, safeSize);
   if(escapedSize == size) {
-    return String((const char*)data, size);
+    return String((const char*)data, size, copyAsOwnData);
   }
   auto result = String(escapedSize);
-  p_char8 resultData = (p_char8) result->data();
+  p_char8 resultData = result->getData();
   v_buff_size pos = 0;
 
   {
@@ -232,51 +211,43 @@ oatpp::String Utils::escapeString(const char* data, v_buff_size size, v_uint32 f
     while (i < safeSize) {
       v_char8 a = data[i];
       if (a < 32) {
-
-        switch (a) {
-
-          case '\b': resultData[pos] = '\\'; resultData[pos + 1] = 'b'; pos += 2; break;
-          case '\f': resultData[pos] = '\\'; resultData[pos + 1] = 'f'; pos += 2; break;
-          case '\n': resultData[pos] = '\\'; resultData[pos + 1] = 'n'; pos += 2; break;
-          case '\r': resultData[pos] = '\\'; resultData[pos + 1] = 'r'; pos += 2; break;
-          case '\t': resultData[pos] = '\\'; resultData[pos + 1] = 't'; pos += 2; break;
-
-          default:
-            resultData[pos] = '\\';
-            resultData[pos + 1] = 'u';
-            oatpp::encoding::Hex::writeUInt16(a, &resultData[pos + 2]);
-            pos += 6;
-            break;
-
+        if (a == '\b') {
+          resultData[pos] = '\\'; resultData[pos + 1] = 'b'; pos += 2;
         }
-
+        else if (a == '\f') {
+          resultData[pos] = '\\'; resultData[pos + 1] = 'f'; pos += 2;
+        }
+        else if (a == '\n') {
+          resultData[pos] = '\\'; resultData[pos + 1] = 'n'; pos += 2;
+        }
+        else if (a == '\r') {
+          resultData[pos] = '\\'; resultData[pos + 1] = 'r'; pos += 2;
+        }
+        else if (a == '\t') {
+          resultData[pos] = '\\'; resultData[pos + 1] = 't'; pos += 2;
+        }
+        else {
+          resultData[pos] = '\\';
+          resultData[pos + 1] = 'u';
+          oatpp::encoding::Hex::writeUInt16(a, &resultData[pos + 2]);
+          pos += 6;
+        }
         i++;
-
       }
       else if (a < 128) {
-
-        switch (a) {
-          case '\"': resultData[pos] = '\\'; resultData[pos + 1] = '"'; pos += 2; break;
-          case '\\': resultData[pos] = '\\'; resultData[pos + 1] = '\\'; pos += 2; break;
-
-          case '/':
-            if((flags & FLAG_ESCAPE_SOLIDUS) > 0) {
-              resultData[pos] = '\\';
-              resultData[pos + 1] = '/';
-              pos += 2;
-            } else {
-              resultData[pos] = data[i];
-              pos++;
-            }
-            break;
-
-          default:
-            resultData[pos] = data[i];
-            pos++;
-            break;
-
+        if (a == '\"') {
+          resultData[pos] = '\\'; resultData[pos + 1] = '"'; pos += 2;
         }
-
+        else if (a == '\\') {
+          resultData[pos] = '\\'; resultData[pos + 1] = '\\'; pos += 2;
+        }
+        else if (a == '/') {
+          resultData[pos] = '\\'; resultData[pos + 1] = '/'; pos += 2;
+        }
+        else {
+          resultData[pos] = data[i];
+          pos++;
+        }
         i++;
       }
       else {
@@ -296,7 +267,7 @@ oatpp::String Utils::escapeString(const char* data, v_buff_size size, v_uint32 f
   }
   
   if(size > safeSize){
-    for(v_buff_size i = pos; i < result->size(); i ++){
+    for(v_buff_size i = pos; i < result->getSize(); i ++){
       resultData[i] = '?';
     }
   }
@@ -304,7 +275,7 @@ oatpp::String Utils::escapeString(const char* data, v_buff_size size, v_uint32 f
   return result;
 }
 
-void Utils::unescapeStringToBuffer(const char* data, v_buff_size size, p_char8 resultData){
+void Utils::unescapeStringToBuffer(p_char8 data, v_buff_size size, p_char8 resultData){
   
   v_buff_size i = 0;
   v_buff_size pos = 0;
@@ -360,7 +331,7 @@ void Utils::unescapeStringToBuffer(const char* data, v_buff_size size, p_char8 r
   
 }
   
-oatpp::String Utils::unescapeString(const char* data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition) {
+oatpp::String Utils::unescapeString(p_char8 data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition) {
   
   v_buff_size unescapedSize = calcUnescapedStringSize(data, size, errorCode, errorPosition);
   if(errorCode != 0){
@@ -368,15 +339,15 @@ oatpp::String Utils::unescapeString(const char* data, v_buff_size size, v_int64&
   }
   auto result = String(unescapedSize);
   if(unescapedSize == size) {
-    std::memcpy((void*) result->data(), data, size);
+    std::memcpy(result->getData(), data, size);
   } else {
-    unescapeStringToBuffer(data, size, (p_char8) result->data());
+    unescapeStringToBuffer(data, size, result->getData());
   }
   return result;
   
 }
   
-std::string Utils::unescapeStringToStdString(const char* data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition){
+std::string Utils::unescapeStringToStdString(p_char8 data, v_buff_size size, v_int64& errorCode, v_buff_size& errorPosition){
   
   v_buff_size unescapedSize = calcUnescapedStringSize(data, size, errorCode, errorPosition);
   if(errorCode != 0){
@@ -393,11 +364,11 @@ std::string Utils::unescapeStringToStdString(const char* data, v_buff_size size,
   
 }
   
-const char* Utils::preparseString(ParsingCaret& caret, v_buff_size& size){
+p_char8 Utils::preparseString(ParsingCaret& caret, v_buff_size& size){
   
   if(caret.canContinueAtChar('"', 1)){
     
-    const char* data = caret.getData();
+    const p_char8 data = caret.getData();
     v_buff_size pos = caret.getPosition();
     v_buff_size pos0 = pos;
     v_buff_size length = caret.getDataSize();
@@ -426,7 +397,7 @@ const char* Utils::preparseString(ParsingCaret& caret, v_buff_size& size){
 oatpp::String Utils::parseString(ParsingCaret& caret) {
   
   v_buff_size size;
-  const char* data = preparseString(caret, size);
+  p_char8 data = preparseString(caret, size);
   
   if(data != nullptr) {
   
@@ -453,7 +424,7 @@ oatpp::String Utils::parseString(ParsingCaret& caret) {
 std::string Utils::parseStringToStdString(ParsingCaret& caret){
   
   v_buff_size size;
-  auto data = preparseString(caret, size);
+  p_char8 data = preparseString(caret, size);
   
   if(data != nullptr) {
     

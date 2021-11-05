@@ -59,7 +59,7 @@ private:
   std::thread m_thread;
   std::mutex m_mutex;
 
-  std::shared_ptr<ConnectionProvider> m_connectionProvider;
+  std::shared_ptr<ServerConnectionProvider> m_connectionProvider;
   std::shared_ptr<ConnectionHandler> m_connectionHandler;
 
   bool m_threaded;
@@ -71,7 +71,7 @@ public:
    * @param connectionProvider - &id:oatpp::network::ConnectionProvider;.
    * @param connectionHandler - &id:oatpp::network::ConnectionHandler;.
    */
-  Server(const std::shared_ptr<ConnectionProvider>& connectionProvider,
+  Server(const std::shared_ptr<ServerConnectionProvider>& connectionProvider,
          const std::shared_ptr<ConnectionHandler>& connectionHandler);
 
   virtual ~Server();
@@ -154,9 +154,10 @@ public:
    * </ul>
    */
   v_int32 getStatus();
-
+  
 };
 
+  
 }}
 
 #endif /* oatpp_network_Server_hpp */

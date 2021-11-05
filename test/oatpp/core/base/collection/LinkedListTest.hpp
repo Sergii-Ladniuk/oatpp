@@ -22,22 +22,21 @@
  *
  ***************************************************************************/
 
-#ifndef oatpp_test_network_monitor_ConnectionMonitorTest_hpp
-#define oatpp_test_network_monitor_ConnectionMonitorTest_hpp
+#ifndef oatpp_test_base_collection_LinkedListTest_hpp
+#define oatpp_test_base_collection_LinkedListTest_hpp
 
 #include "oatpp-test/UnitTest.hpp"
 
-namespace oatpp { namespace test { namespace network { namespace monitor {
-
-class ConnectionMonitorTest : public UnitTest {
+namespace oatpp { namespace test { namespace collection {
+  
+class LinkedListTest : public UnitTest{
 public:
-
-  ConnectionMonitorTest():UnitTest("TEST[network::monitor::ConnectionMonitorTest]"){}
+  
+  LinkedListTest():UnitTest("TEST[oatpp::collection::LinkedListTest]"){}
   void onRun() override;
-
+  
 };
+  
+}}}
 
-}}}}
-
-
-#endif // oatpp_test_network_monitor_ConnectionMonitorTest_hpp
+#endif /* oatpp_test_base_collection_LinkedListTest_hpp */

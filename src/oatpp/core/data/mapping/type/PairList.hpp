@@ -52,8 +52,6 @@ namespace __class {
     class PolymorphicDispatcher {
     public:
 
-      virtual ~PolymorphicDispatcher() = default;
-
       virtual type::Void createObject() const = 0;
 
       /**
@@ -168,11 +166,10 @@ public:
 private:
 
   static Type createType() {
-    Type::Info info;
-    info.params.push_back(Key::Class::getType());
-    info.params.push_back(Value::Class::getType());
-    info.polymorphicDispatcher = new PolymorphicDispatcher();
-    return Type(__class::AbstractPairList::CLASS_ID, info);
+    Type type(__class::AbstractPairList::CLASS_ID, nullptr, new PolymorphicDispatcher());
+    type.params.push_back(Key::Class::getType());
+    type.params.push_back(Value::Class::getType());
+    return type;
   }
 
 public:

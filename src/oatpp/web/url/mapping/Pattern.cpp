@@ -50,8 +50,8 @@ std::shared_ptr<Pattern> Pattern::parse(p_char8 data, v_buff_size size){
     if(a == '/'){
       
       if(i - lastPos > 0){
-        auto part = Part::createShared(Part::FUNCTION_CONST, oatpp::String((const char*)&data[lastPos], i - lastPos));
-        result->m_parts->push_back(part);
+        auto part = Part::createShared(Part::FUNCTION_CONST, oatpp::String((const char*)&data[lastPos], i - lastPos, true));
+        result->m_parts->pushBack(part);
       }
       
       lastPos = i + 1;
@@ -59,11 +59,11 @@ std::shared_ptr<Pattern> Pattern::parse(p_char8 data, v_buff_size size){
     } else if(a == '*'){
       lastPos = i + 1;
       if(size > lastPos){
-        auto part = Part::createShared(Part::FUNCTION_ANY_END, oatpp::String((const char*)&data[lastPos], size - lastPos));
-        result->m_parts->push_back(part);
+        auto part = Part::createShared(Part::FUNCTION_ANY_END, oatpp::String((const char*)&data[lastPos], size - lastPos, true));
+        result->m_parts->pushBack(part);
       }else{
         auto part = Part::createShared(Part::FUNCTION_ANY_END, oatpp::String((v_buff_size)0));
-        result->m_parts->push_back(part);
+        result->m_parts->pushBack(part);
       }
       return result;
     
@@ -75,11 +75,11 @@ std::shared_ptr<Pattern> Pattern::parse(p_char8 data, v_buff_size size){
       }
       
       if(i > lastPos){
-        auto part = Part::createShared(Part::FUNCTION_VAR, oatpp::String((const char*)&data[lastPos], i - lastPos));
-        result->m_parts->push_back(part);
+        auto part = Part::createShared(Part::FUNCTION_VAR, oatpp::String((const char*)&data[lastPos], i - lastPos, true));
+        result->m_parts->pushBack(part);
       }else{
         auto part = Part::createShared(Part::FUNCTION_VAR, oatpp::String((v_buff_size)0));
-        result->m_parts->push_back(part);
+        result->m_parts->pushBack(part);
       }
       
       lastPos = i + 1;
@@ -91,8 +91,8 @@ std::shared_ptr<Pattern> Pattern::parse(p_char8 data, v_buff_size size){
   }
   
   if(i - lastPos > 0){
-    auto part = Part::createShared(Part::FUNCTION_CONST, oatpp::String((const char*)&data[lastPos], i - lastPos));
-    result->m_parts->push_back(part);
+    auto part = Part::createShared(Part::FUNCTION_CONST, oatpp::String((const char*)&data[lastPos], i - lastPos, true));
+    result->m_parts->pushBack(part);
   }
   
   return result;
@@ -103,7 +103,7 @@ std::shared_ptr<Pattern> Pattern::parse(const char* data){
 }
 
 std::shared_ptr<Pattern> Pattern::parse(const oatpp::String& data){
-  return parse((p_char8) data->data(), data->size());
+  return parse(data->getData(), data->getSize());
 }
   
 v_char8 Pattern::findSysChar(oatpp::parser::Caret& caret) {
@@ -121,27 +121,33 @@ v_char8 Pattern::findSysChar(oatpp::parser::Caret& caret) {
   
 bool Pattern::match(const StringKeyLabel& url, MatchMap& matchMap) {
   
-  oatpp::parser::Caret caret((const char*) url.getData(), url.getSize());
+  oatpp::parser::Caret caret(url.getData(), url.getSize());
   
-  if (m_parts->empty()) {
-    return !caret.skipChar('/');    
+  if(m_parts->count() == 0){
+    
+    if(caret.skipChar('/')){
+      return false;
+    }
+    
+    return true;
+    
   }
   
-  auto curr = std::begin(*m_parts);
-  const auto end = std::end(*m_parts);
-  while(curr != end){
-    const std::shared_ptr<Part>& part = *curr;
-    ++curr;
+  auto curr = m_parts->getFirstNode();
+  
+  while(curr != nullptr){
+    const std::shared_ptr<Part>& part = curr->getData();
+    curr = curr->getNext();
     caret.skipChar('/');
     
     if(part->function == Part::FUNCTION_CONST){
       
-      if(!caret.isAtText(part->text->data(), part->text->size(), true)) {
+      if(!caret.isAtText(part->text->getData(), part->text->getSize(), true)){
         return false;
       }
       
       if(caret.canContinue() && !caret.isAtChar('/')){
-        if(caret.isAtChar('?') && (curr == end || (*curr)->function == Part::FUNCTION_ANY_END)) {
+        if(caret.isAtChar('?') && (curr == nullptr || curr->getData()->function == Part::FUNCTION_ANY_END)) {
           matchMap.m_tail = StringKeyLabel(url.getMemoryHandle(), caret.getCurrData(), caret.getDataSize() - caret.getPosition());
           return true;
         }
@@ -162,7 +168,7 @@ bool Pattern::match(const StringKeyLabel& url, MatchMap& matchMap) {
       auto label = caret.putLabel();
       v_char8 a = findSysChar(caret);
       if(a == '?') {
-        if(curr == end || (*curr)->function == Part::FUNCTION_ANY_END) {
+        if(curr == nullptr || curr->getData()->function == Part::FUNCTION_ANY_END) {
           matchMap.m_variables[part->text] = StringKeyLabel(url.getMemoryHandle(), label.getData(), label.getSize());
           matchMap.m_tail = StringKeyLabel(url.getMemoryHandle(), caret.getCurrData(), caret.getDataSize() - caret.getPosition());
           return true;
@@ -177,13 +183,20 @@ bool Pattern::match(const StringKeyLabel& url, MatchMap& matchMap) {
   }
   
   caret.skipChar('/');
-  return !caret.canContinue();
+  if(caret.canContinue()){
+    return false;
+  }
+  
+  return true;
   
 }
 
 oatpp::String Pattern::toString() {
   auto stream = oatpp::data::stream::ChunkedBuffer::createShared();
-  for (const std::shared_ptr<Part>& part : *m_parts) {
+  auto curr = m_parts->getFirstNode();
+  while (curr != nullptr) {
+    const std::shared_ptr<Part>& part = curr->getData();
+    curr = curr->getNext();
     if(part->function == Part::FUNCTION_CONST) {
       stream->writeSimple("/", 1);
       stream->writeSimple(part->text);

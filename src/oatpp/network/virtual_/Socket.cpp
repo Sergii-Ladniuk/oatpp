@@ -80,6 +80,8 @@ oatpp::data::stream::Context& Socket::getInputStreamContext() {
 void Socket::close() {
   m_pipeIn->close();
   m_pipeOut->close();
+  m_pipeIn.reset();
+  m_pipeOut.reset();
 }
   
 }}}

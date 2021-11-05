@@ -88,23 +88,18 @@ namespace __class {
 
     };
 
-  private:
-
-    static oatpp::Type* createType() {
-      oatpp::Type::Info info;
-      info.interpretationMap = {
-        {"test", new Inter()}
-      };
-      return new Type(CLASS_ID, info);
-    }
-
   public:
 
     static const oatpp::ClassId CLASS_ID;
 
     static oatpp::Type* getType(){
-      static Type* type = createType();
-      return type;
+      static Type type(
+        CLASS_ID, nullptr, nullptr,
+        {
+          {"test", new Inter()}
+        }
+      );
+      return &type;
     }
 
   };
@@ -142,23 +137,18 @@ namespace __class {
 
     };
 
-  private:
-
-    static oatpp::Type* createType() {
-      oatpp::Type::Info info;
-      info.interpretationMap = {
-        {"test", new Inter()}
-      };
-      return new oatpp::Type(CLASS_ID, info);
-    }
-
   public:
 
     static const oatpp::ClassId CLASS_ID;
 
     static oatpp::Type* getType(){
-      static Type* type = createType();
-      return type;
+      static Type type(
+        CLASS_ID, nullptr, nullptr,
+        {
+          {"test", new Inter()}
+        }
+      );
+      return &type;
     }
 
   };
@@ -213,7 +203,7 @@ void InterpretationTest::onRun() {
 
     auto v = tr.resolveObjectPropertyValue(l, {"p1", "x"}, cache);
     OATPP_ASSERT(v);
-    OATPP_ASSERT(v.getValueType() == oatpp::Int32::Class::getType());
+    OATPP_ASSERT(v.valueType == oatpp::Int32::Class::getType());
     OATPP_ASSERT(v.staticCast<oatpp::Int32>() == 1);
   }
 
@@ -225,7 +215,7 @@ void InterpretationTest::onRun() {
 
     auto v = tr.resolveObjectPropertyValue(l, {"p1", "y"}, cache);
     OATPP_ASSERT(v);
-    OATPP_ASSERT(v.getValueType() == oatpp::Int32::Class::getType());
+    OATPP_ASSERT(v.valueType == oatpp::Int32::Class::getType());
     OATPP_ASSERT(v.staticCast<oatpp::Int32>() == 2);
   }
 
@@ -237,7 +227,7 @@ void InterpretationTest::onRun() {
 
     auto v = tr.resolveObjectPropertyValue(l, {"p1", "z"}, cache);
     OATPP_ASSERT(v);
-    OATPP_ASSERT(v.getValueType() == oatpp::Int32::Class::getType());
+    OATPP_ASSERT(v.valueType == oatpp::Int32::Class::getType());
     OATPP_ASSERT(v.staticCast<oatpp::Int32>() == 3);
   }
 

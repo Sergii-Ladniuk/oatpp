@@ -6,8 +6,7 @@
  *                (_____)(__)(__)(__)  |_|    |_|
  *
  *
- * Copyright 2018-present, Leonid Stryzhevskyi <lganzzzo@gmail.com>,
- * Matthias Haselmaier <mhaselmaier@gmail.com>
+ * Copyright 2018-present, Leonid Stryzhevskyi <lganzzzo@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,11 +113,6 @@ public:
    */
   static constexpr const v_int32 TYPE_WAIT_LIST = 9;
 
-  /**
-   * Indicate that coroutine should be put on a wait-list provided with a timeout.
-   */
-  static constexpr const v_int32 TYPE_WAIT_LIST_WITH_TIMEOUT = 10;
-
 public:
 
   /**
@@ -180,11 +174,6 @@ private:
     IOEventType ioEventType;
   };
 
-  struct WaitListWithTimeout {
-    CoroutineWaitList* waitList;
-    v_int64 timeoutTimeSinceEpochMS;
-  };
-
 private:
   union Data {
     FunctionPtr fptr;
@@ -193,7 +182,6 @@ private:
     IOData ioData;
     v_int64 timePointMicroseconds;
     CoroutineWaitList* waitList;
-    WaitListWithTimeout waitListWithTimeout;
   };
 private:
   mutable v_int32 m_type;
@@ -254,14 +242,6 @@ public:
    * @return - Action.
    */
   static Action createWaitListAction(CoroutineWaitList* waitList);
-
-  /**
-   * Create TYPE_WAIT_LIST_WITH_TIMEOUT Action.
-   * @param waitList - wait-list to put coroutine on.
-   * @param timeout - latest time point at which the coroutine should be continued.
-   * @return - Action.
-   */
-  static Action createWaitListActionWithTimeout(CoroutineWaitList* waitList, const std::chrono::steady_clock::time_point& timeout);
 
   /**
    * Constructor. Create start-coroutine Action.
@@ -361,11 +341,6 @@ class CoroutineStarter {
 private:
   AbstractCoroutine* m_first;
   AbstractCoroutine* m_last;
-
-private:
-
-  void freeCoroutines();
-
 public:
 
   /**
@@ -622,8 +597,8 @@ public:
    * @return - &id:oatpp::async::CoroutineStarter;.
    */
   template<typename ...ConstructorArgs>
-  static CoroutineStarter start(ConstructorArgs&&... args) {
-    return new T(std::forward<ConstructorArgs>(args)...);
+  static CoroutineStarter start(ConstructorArgs... args) {
+    return new T(args...);
   }
 
   /**
@@ -711,9 +686,6 @@ public:
      * Move assignment operator.
      */
     StarterForResult& operator=(StarterForResult&& other) {
-      if (this == std::addressof(other)) return *this;
-        
-      delete m_coroutine;
       m_coroutine = other.m_coroutine;
       other.m_coroutine = nullptr;
       return *this;
@@ -787,7 +759,7 @@ public:
    * @param ptr - pointer of the function to call.
    * @return - Action.
    */
-  Action call(const AbstractCoroutine::FunctionPtr& ptr) override {
+  virtual Action call(const AbstractCoroutine::FunctionPtr& ptr) override {
     Function f = static_cast<Function>(ptr);
     return (static_cast<T*>(this)->*f)();
   }

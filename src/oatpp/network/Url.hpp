@@ -27,6 +27,7 @@
 
 #include "oatpp/core/data/share/LazyStringMap.hpp"
 #include "oatpp/core/parser/Caret.hpp"
+#include "oatpp/core/collection/ListMap.hpp"
 #include "oatpp/core/Types.hpp"
 
 namespace oatpp { namespace network {

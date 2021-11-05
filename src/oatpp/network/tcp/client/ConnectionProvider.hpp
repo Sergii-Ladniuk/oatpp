@@ -28,7 +28,6 @@
 #include "oatpp/network/Address.hpp"
 
 #include "oatpp/network/ConnectionProvider.hpp"
-#include "oatpp/core/provider/Invalidator.hpp"
 #include "oatpp/core/Types.hpp"
 
 namespace oatpp { namespace network { namespace tcp { namespace client {
@@ -36,18 +35,7 @@ namespace oatpp { namespace network { namespace tcp { namespace client {
 /**
  * Simple provider of clinet TCP connections.
  */
-class ConnectionProvider : public ClientConnectionProvider {
-private:
-
-  class ConnectionInvalidator : public provider::Invalidator<data::stream::IOStream> {
-  public:
-
-    void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
-
-  };
-
-private:
-  std::shared_ptr<ConnectionInvalidator> m_invalidator;
+class ConnectionProvider : public base::Countable, public ClientConnectionProvider {
 protected:
   network::Address m_address;
 public:
@@ -78,13 +66,20 @@ public:
    * Get connection.
    * @return - `std::shared_ptr` to &id:oatpp::data::stream::IOStream;.
    */
-  provider::ResourceHandle<data::stream::IOStream> get() override;
+  std::shared_ptr<data::stream::IOStream> get() override;
 
   /**
    * Get connection in asynchronous manner.
    * @return - &id:oatpp::async::CoroutineStarterForResult;.
    */
-  oatpp::async::CoroutineStarterForResult<const provider::ResourceHandle<data::stream::IOStream>&> getAsync() override;
+  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> getAsync() override;
+
+  /**
+   * Call shutdown read and write on an underlying file descriptor.
+   * `connection` **MUST** be an object previously obtained from **THIS** connection provider.
+   * @param connection
+   */
+  void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
 
   /**
    * Get address - &id:oatpp::network::Address;.

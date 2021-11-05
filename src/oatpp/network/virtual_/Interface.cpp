@@ -29,8 +29,8 @@ namespace oatpp { namespace network { namespace virtual_ {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ListenerLock
 
-Interface::ListenerLock::ListenerLock(Interface* _interface)
-  : m_interface(_interface)
+Interface::ListenerLock::ListenerLock(Interface* interface)
+  : m_interface(interface)
 {}
 
 Interface::ListenerLock::~ListenerLock() {
@@ -45,17 +45,17 @@ Interface::ListenerLock::~ListenerLock() {
 std::recursive_mutex Interface::m_registryMutex;
 std::unordered_map<oatpp::String, std::weak_ptr<Interface>> Interface::m_registry;
 
-void Interface::registerInterface(const std::shared_ptr<Interface>& _interface) {
+void Interface::registerInterface(const std::shared_ptr<Interface>& interface) {
 
   std::lock_guard<std::recursive_mutex> lock(m_registryMutex);
 
-  auto it = m_registry.find(_interface->getName());
+  auto it = m_registry.find(interface->getName());
   if(it != m_registry.end()) {
     throw std::runtime_error
-    ("[oatpp::network::virtual_::Interface::registerInterface()]: Error. Interface with such name already exists - '" + *_interface->getName() + "'.");
+    ("[oatpp::network::virtual_::Interface::registerInterface()]: Error. Interface with such name already exists - '" + interface->getName()->std_str() + "'.");
   }
 
-  m_registry.insert({_interface->getName(), _interface});
+  m_registry.insert({interface->getName(), interface});
 
 }
 
@@ -66,7 +66,7 @@ void Interface::unregisterInterface(const oatpp::String& name) {
   auto it = m_registry.find(name);
   if(it == m_registry.end()) {
     throw std::runtime_error
-      ("[oatpp::network::virtual_::Interface::unregisterInterface()]: Error. Interface NOT FOUND - '" + *name + "'.");
+      ("[oatpp::network::virtual_::Interface::unregisterInterface()]: Error. Interface NOT FOUND - '" + name->std_str() + "'.");
   }
 
   m_registry.erase(it);
@@ -104,9 +104,9 @@ std::shared_ptr<Interface> Interface::obtainShared(const oatpp::String& name) {
     return it->second.lock();
   }
 
-  std::shared_ptr<Interface> _interface(new Interface(name));
-  registerInterface(_interface);
-  return _interface;
+  std::shared_ptr<Interface> interface(new Interface(name));
+  registerInterface(interface);
+  return interface;
 
 }
 
@@ -166,7 +166,7 @@ std::shared_ptr<Interface::ListenerLock> Interface::bind() {
     return std::shared_ptr<ListenerLock>(m_listenerLock.load());
   }
   throw std::runtime_error(
-    "[oatpp::network::virtual_::Interface::bind()]: Can't bind to interface '" + *m_name + "'. Listener lock is already acquired");
+    "[oatpp::network::virtual_::Interface::bind()]: Can't bind to interface '" + m_name->std_str() + "'. Listener lock is already acquired");
 }
 
 void Interface::unbindListener(ListenerLock* listenerLock) {
@@ -184,7 +184,7 @@ std::shared_ptr<Interface::ConnectionSubmission> Interface::connect() {
     auto submission = std::make_shared<ConnectionSubmission>(true);
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      m_submissions.push_back(submission);
+      m_submissions.pushBack(submission);
     }
     m_condition.notify_one();
     return submission;
@@ -199,7 +199,7 @@ std::shared_ptr<Interface::ConnectionSubmission> Interface::connectNonBlocking()
       std::unique_lock<std::mutex> lock(m_mutex, std::try_to_lock);
       if (lock.owns_lock()) {
         submission = std::make_shared<ConnectionSubmission>(true);
-        m_submissions.push_back(submission);
+        m_submissions.pushBack(submission);
       }
     }
     if (submission) {
@@ -210,28 +210,21 @@ std::shared_ptr<Interface::ConnectionSubmission> Interface::connectNonBlocking()
   return std::make_shared<ConnectionSubmission>(false);
 }
 
-std::shared_ptr<Socket> Interface::accept(const bool& waitingHandle,
-                                          const std::chrono::duration<v_int64, std::micro>& timeout) {
-
-  auto startTime = std::chrono::system_clock::now();
+std::shared_ptr<Socket> Interface::accept(const bool& waitingHandle) {
   std::unique_lock<std::mutex> lock(m_mutex);
-  while (waitingHandle && m_submissions.empty() && std::chrono::system_clock::now() - startTime < timeout) {
-    m_condition.wait_for(lock, std::chrono::milliseconds (100));
+  while (waitingHandle && m_submissions.getFirstNode() == nullptr) {
+    m_condition.wait(lock);
   }
-  if(!waitingHandle || m_submissions.empty()) {
+  if(!waitingHandle) {
     return nullptr;
   }
-  const auto submission = m_submissions.front();
-  m_submissions.pop_front();
-  return acceptSubmission(submission);
+  return acceptSubmission(m_submissions.popFront());
 }
 
 std::shared_ptr<Socket> Interface::acceptNonBlocking() {
   std::unique_lock<std::mutex> lock(m_mutex, std::try_to_lock);
-  if(lock.owns_lock() && !m_submissions.empty()) {
-    const auto submission = m_submissions.front();
-    m_submissions.pop_front();
-    return acceptSubmission(submission);
+  if(lock.owns_lock() && m_submissions.getFirstNode() != nullptr) {
+    return acceptSubmission(m_submissions.popFront());
   }
   return nullptr;
 }
@@ -240,9 +233,14 @@ void Interface::dropAllConnection() {
 
   std::unique_lock<std::mutex> lock(m_mutex);
 
-  for (const auto& submission : m_submissions) {
+  auto curr = m_submissions.getFirstNode();
+
+  while(curr != nullptr) {
+    auto submission = curr->getData();
     submission->invalidate();
+    curr = curr->getNext();
   }
+
   m_submissions.clear();
 
 }

@@ -31,9 +31,14 @@
 
 namespace oatpp { namespace web { namespace mime { namespace multipart {
 
-Part::Part(const Headers &headers, const std::shared_ptr<data::resource::Resource>& payload)
+Part::Part(const Headers &headers,
+           const std::shared_ptr<data::stream::InputStream> &inputStream,
+           const oatpp::String inMemoryData,
+           v_int64 knownSize)
   : m_headers(headers)
-  , m_payload(payload)
+  , m_inputStream(inputStream)
+  , m_inMemoryData(inMemoryData)
+  , m_knownSize(knownSize)
 {
 
   auto contentDisposition = m_headers.getAsMemoryLabel<oatpp::data::share::StringKeyLabel>("Content-Disposition");
@@ -49,12 +54,24 @@ Part::Part(const Headers &headers, const std::shared_ptr<data::resource::Resourc
 
 }
 
-void Part::setPayload(const std::shared_ptr<data::resource::Resource>& payload) {
-  m_payload = payload;
+
+Part::Part(const Headers& headers) : Part(headers, nullptr, nullptr, -1) {}
+
+Part::Part() : Part(Headers(), nullptr, nullptr, -1) {}
+
+void Part::setDataInfo(const std::shared_ptr<data::stream::InputStream>& inputStream,
+                       const oatpp::String inMemoryData,
+                       v_int64 knownSize)
+{
+  m_inputStream = inputStream;
+  m_inMemoryData = inMemoryData;
+  m_knownSize = knownSize;
 }
 
-std::shared_ptr<data::resource::Resource> Part::getPayload() {
-  return m_payload;
+void Part::setDataInfo(const std::shared_ptr<data::stream::InputStream>& inputStream) {
+  m_inputStream = inputStream;
+  m_inMemoryData = nullptr;
+  m_knownSize = -1;
 }
 
 oatpp::String Part::getName() const {
@@ -71,16 +88,28 @@ const Part::Headers& Part::getHeaders() const {
   return m_headers;
 }
 
-oatpp::String Part::getHeader(const oatpp::data::share::StringKeyLabelCI& headerName) const {
+oatpp::String Part::getHeader(const oatpp::data::share::StringKeyLabelCI_FAST& headerName) const {
   return m_headers.get(headerName);
 }
 
-void Part::putHeader(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value) {
+void Part::putHeader(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value) {
   m_headers.put(key, value);
 }
 
-bool Part::putHeaderIfNotExists(const oatpp::data::share::StringKeyLabelCI& key, const oatpp::data::share::StringKeyLabel& value) {
+bool Part::putHeaderIfNotExists(const oatpp::data::share::StringKeyLabelCI_FAST& key, const oatpp::data::share::StringKeyLabel& value) {
   return m_headers.putIfNotExists(key, value);
+}
+
+std::shared_ptr<data::stream::InputStream> Part::getInputStream() const {
+  return m_inputStream;
+}
+
+oatpp::String Part::getInMemoryData() const {
+  return m_inMemoryData;
+}
+
+v_int64 Part::getKnownSize() const {
+  return m_knownSize;
 }
 
 void Part::setTag(const char* tagName, const std::shared_ptr<oatpp::base::Countable>& tagObject) {

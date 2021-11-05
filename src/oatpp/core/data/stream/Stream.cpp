@@ -119,7 +119,7 @@ async::CoroutineStarter WriteCallback::writeExactSizeDataAsync(const void* data,
       , m_inlineData(data, size)
     {}
 
-    Action act() override {
+    Action act() {
       return m_this->writeExactSizeDataAsyncInline(m_inlineData, finish());
     }
 
@@ -727,11 +727,7 @@ async::CoroutineStarter transferAsync(const base::ObjectHandle<ReadCallback>& re
           switch(res) {
 
             case IOError::BROKEN_PIPE:
-              if(m_transferSize > 0) {
-                return error<AsyncTransferError>("[oatpp::data::stream::transferAsync]: Error. ReadCallback. BROKEN_PIPE.");
-              }
-              m_inData.set(nullptr, 0);
-              break;
+              return error<AsyncTransferError>("[oatpp::data::stream::transferAsync]: Error. ReadCallback. BROKEN_PIPE.");
 
             case IOError::ZERO_VALUE:
               m_inData.set(nullptr, 0);
@@ -750,13 +746,10 @@ async::CoroutineStarter transferAsync(const base::ObjectHandle<ReadCallback>& re
               return repeat();
 
             default:
-              if(m_transferSize > 0) {
-                if (!action.isNone()) {
-                  return action;
-                }
-                return error<AsyncTransferError>("[oatpp::data::stream::transferAsync]: Error. ReadCallback. Unknown IO error.");
+              if(!action.isNone()) {
+                return action;
               }
-              m_inData.set(nullptr, 0);
+              return error<AsyncTransferError>("[oatpp::data::stream::transferAsync]: Error. ReadCallback. Unknown IO error.");
 
           }
 

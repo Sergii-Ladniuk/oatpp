@@ -27,8 +27,8 @@
 
 #include "./DTOs.hpp"
 
-#include "oatpp/web/mime/multipart/FileProvider.hpp"
-#include "oatpp/web/mime/multipart/InMemoryDataProvider.hpp"
+#include "oatpp/web/mime/multipart/FileStreamProvider.hpp"
+#include "oatpp/web/mime/multipart/InMemoryPartReader.hpp"
 #include "oatpp/web/mime/multipart/Reader.hpp"
 #include "oatpp/web/mime/multipart/PartList.hpp"
 
@@ -38,7 +38,6 @@
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
 
-#include "oatpp/core/data/resource/File.hpp"
 #include "oatpp/core/data/stream/FileStream.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
 #include "oatpp/core/macro/codegen.hpp"
@@ -180,14 +179,14 @@ public:
     oatpp::String m_text;
     v_int32 m_counter;
     v_int32 m_iterations;
-    data::buffer::InlineWriteData m_inlineData;
+    data::buffer::InlineReadData m_inlineData;
   public:
 
     ReadCallback(const oatpp::String& text, v_int32 iterations)
       : m_text(text)
       , m_counter(0)
       , m_iterations(iterations)
-      , m_inlineData(text->data(), text->size())
+      , m_inlineData(text->getData(), text->getSize())
     {}
 
     v_io_size read(void *buffer, v_buff_size count, async::Action& action) override {
@@ -206,7 +205,7 @@ public:
           m_inlineData.inc(desiredToRead);
 
           if (m_inlineData.bytesLeft == 0) {
-            m_inlineData.set(m_text->data(), m_text->size());
+            m_inlineData.set(m_text->getData(), m_text->getSize());
             m_counter++;
           }
 
@@ -240,7 +239,7 @@ public:
     auto multipart = std::make_shared<oatpp::web::mime::multipart::PartList>(request->getHeaders());
 
     oatpp::web::mime::multipart::Reader multipartReader(multipart.get());
-    multipartReader.setDefaultPartReader(oatpp::web::mime::multipart::createInMemoryPartReader(10));
+    multipartReader.setDefaultPartReader(std::make_shared<oatpp::web::mime::multipart::InMemoryPartReader>(10));
 
     request->transferBody(&multipartReader);
 
@@ -280,14 +279,14 @@ public:
 
     OATPP_ASSERT_HTTP(part1, Status::CODE_400, "part1 is empty");
 
-    OATPP_LOGD("Multipart", "part1='%s'", part1->getPayload()->getInMemoryData()->c_str());
+    OATPP_LOGD("Multipart", "part1='%s'", part1->getInMemoryData()->c_str());
 
     /* Get part by name "part2"*/
     auto filePart = multipart->getNamedPart("part2");
 
     OATPP_ASSERT_HTTP(filePart, Status::CODE_400, "part2 is empty");
 
-    auto inputStream = filePart->getPayload()->openInputStream();
+    auto inputStream = filePart->getInputStream();
 
     // TODO - process file stream.
 
@@ -327,9 +326,9 @@ public:
 //      part->setDataInfo(std::make_shared<oatpp::data::stream::BufferInputStream>(frameData));
 
       if(counter % 2 == 0) {
-        part->setPayload(std::make_shared<data::resource::File>("/Users/leonid/Documents/test/frame1.jpg"));
+        part->setDataInfo(std::make_shared<oatpp::data::stream::FileInputStream>("/Users/leonid/Documents/test/frame1.jpg"));
       } else {
-        part->setPayload(std::make_shared<data::resource::File>("/Users/leonid/Documents/test/frame2.jpg"));
+        part->setDataInfo(std::make_shared<oatpp::data::stream::FileInputStream>("/Users/leonid/Documents/test/frame2.jpg"));
       }
 
       ++ counter;
@@ -385,21 +384,6 @@ public:
       return createResponse(Status::CODE_200, "");
     }
     return createResponse(Status::CODE_400, "");
-  }
-
-  ENDPOINT_INTERCEPTOR(getBundle, middleware) {
-    request->putBundleData("str_param", oatpp::String("str-param"));
-    request->putBundleData("int_param", oatpp::Int32(32000));
-    return (this->*intercepted)(request);
-  }
-  ENDPOINT("GET", "bundle", getBundle,
-           BUNDLE(String, str_param),
-           BUNDLE(Int32, a, "int_param"))
-  {
-    auto dto = TestDto::createShared();
-    dto->testValue = str_param;
-    dto->testValueInt = a;
-    return createDtoResponse(Status::CODE_200, dto);
   }
   
 };

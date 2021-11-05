@@ -116,18 +116,4 @@ std::shared_ptr<Endpoint::Info> Endpoint::info() {
   return m_info;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Endpoints::append(const std::list<std::shared_ptr<Endpoint>>& endpoints) {
-  list.insert(list.end(), endpoints.begin(), endpoints.end());
-}
-
-void Endpoints::append(const Endpoints& endpoints) {
-  append(endpoints.list);
-}
-
-void Endpoints::append(const std::shared_ptr<Endpoint>& endpoint) {
-  list.push_back(endpoint);
-}
-
 }}}}

@@ -37,9 +37,9 @@ std::shared_ptr<const data::mapping::TypeResolver> Executor::getDefaultTypeResol
 std::shared_ptr<QueryResult> Executor::execute(const oatpp::String& query,
                                                const std::unordered_map<oatpp::String, oatpp::Void>& params,
                                                const std::shared_ptr<const data::mapping::TypeResolver>& typeResolver,
-                                               const provider::ResourceHandle<Connection>& connection)
+                                               const std::shared_ptr<Connection>& connection)
 {
-  const auto& qt = parseQueryTemplate(nullptr, query, ParamsTypeMap(), false);
+  const auto& qt = parseQueryTemplate(nullptr, query, {}, false);
   return execute(qt, params, typeResolver, connection);
 }
 

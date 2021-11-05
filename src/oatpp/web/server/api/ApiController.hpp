@@ -22,21 +22,23 @@
  *
  ***************************************************************************/
 
-#ifndef oatpp_web_server_api_Controller_hpp
-#define oatpp_web_server_api_Controller_hpp
+#ifndef oatpp_web_server_rest_Controller_hpp
+#define oatpp_web_server_rest_Controller_hpp
 
 #include "./Endpoint.hpp"
 
 #include "oatpp/web/server/handler/AuthorizationHandler.hpp"
 #include "oatpp/web/server/handler/ErrorHandler.hpp"
 #include "oatpp/web/server/handler/AuthorizationHandler.hpp"
+#include "oatpp/web/server/HttpConnectionHandler.hpp"
+#include "oatpp/web/url/mapping/Router.hpp"
 #include "oatpp/web/protocol/http/incoming/Response.hpp"
 #include "oatpp/web/protocol/http/outgoing/Request.hpp"
 #include "oatpp/web/protocol/http/outgoing/ResponseFactory.hpp"
 
+#include "oatpp/core/collection/LinkedList.hpp"
 #include "oatpp/core/utils/ConversionUtils.hpp"
 
-#include <list>
 #include <unordered_map>
 
 namespace oatpp { namespace web { namespace server { namespace api {
@@ -49,6 +51,10 @@ class ApiController : public oatpp::base::Countable {
 protected:
   typedef ApiController __ControllerType;
 public:
+  /**
+   * Convenience typedef for &id:oatpp::web::server::HttpRouter;.
+   */
+  typedef oatpp::web::server::HttpRouter Router;
 
   /**
    * Convenience typedef for &id:oatpp::web::protocol::http::outgoing::ResponseFactory;.
@@ -89,6 +95,16 @@ public:
    * Convenience typedef for &id:oatpp::web::protocol::http::QueryParams;.
    */
   typedef oatpp::web::protocol::http::QueryParams QueryParams;
+
+  /**
+   * Convenience typedef for &id:oatpp::web::server::api::Endpoint;.
+   */
+  typedef oatpp::web::server::api::Endpoint Endpoint;
+
+  /**
+   * Convenience typedef for list of &id:oatpp::web::server::api::Endpoint;.
+   */
+  typedef oatpp::collection::LinkedList<std::shared_ptr<Endpoint>> Endpoints;
 
   /**
    * Convenience typedef for &id:oatpp::web::server::HttpRequestHandler;.
@@ -353,7 +369,7 @@ protected:
   std::shared_ptr<RequestHandler> getEndpointHandler(const std::string& endpointName);
   
 protected:
-  Endpoints m_endpoints;
+  std::shared_ptr<Endpoints> m_endpoints;
   std::shared_ptr<handler::ErrorHandler> m_errorHandler;
   std::shared_ptr<handler::AuthorizationHandler> m_defaultAuthorizationHandler;
   std::shared_ptr<oatpp::data::mapping::ObjectMapper> m_defaultObjectMapper;
@@ -362,25 +378,32 @@ protected:
   const oatpp::String m_routerPrefix;
 public:
   ApiController(const std::shared_ptr<oatpp::data::mapping::ObjectMapper>& defaultObjectMapper, const oatpp::String &routerPrefix = nullptr)
-    : m_defaultObjectMapper(defaultObjectMapper)
+    : m_endpoints(Endpoints::createShared())
+    , m_errorHandler(nullptr)
+    , m_defaultObjectMapper(defaultObjectMapper)
     , m_routerPrefix(routerPrefix)
   {}
 public:
   
   template<class T>
-  static std::shared_ptr<Endpoint> createEndpoint(Endpoints& endpoints,
+  static std::shared_ptr<Endpoint> createEndpoint(const std::shared_ptr<Endpoints>& endpoints,
                                                   const std::shared_ptr<Handler<T>>& handler,
                                                   const EndpointInfoBuilder& infoBuilder)
   {
     auto endpoint = Endpoint::createShared(handler, infoBuilder);
-    endpoints.append(endpoint);
+    endpoints->pushBack(endpoint);
     return endpoint;
   }
+
+  /**
+   * Subscribes all created endpoint-handlers to corresponding URLs in Router
+   */
+  void addEndpointsToRouter(const std::shared_ptr<Router>& router);
   
   /**
    * Get list of Endpoints created via ENDPOINT macro
    */
-  const Endpoints& getEndpoints();
+  std::shared_ptr<Endpoints> getEndpoints();
 
   /**
    * [under discussion]
@@ -439,9 +462,9 @@ public:
       (void) text;
       success = false;
       OATPP_LOGE("[oatpp::web::server::api::ApiController::TypeInterpretation::fromString()]",
-                 "Error. No conversion from '%s' to '%s' is defined.", "oatpp::String", typeName->c_str());
+                 "Error. No conversion from '%s' to '%s' is defined.", "oatpp::String", typeName->getData());
       throw std::runtime_error("[oatpp::web::server::api::ApiController::TypeInterpretation::fromString()]: Error. "
-                               "No conversion from 'oatpp::String' to '" + *typeName + "' is defined. "
+                               "No conversion from 'oatpp::String' to '" + typeName->std_str() + "' is defined. "
                                "Please define type conversion.");
     }
 
@@ -573,4 +596,4 @@ struct ApiController::TypeInterpretation <data::mapping::type::EnumObjectWrapper
 
 }}}}
 
-#endif /* oatpp_web_server_api_Controller_hpp */
+#endif /* oatpp_web_server_rest_Controller_hpp */

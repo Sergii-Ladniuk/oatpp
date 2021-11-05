@@ -22,21 +22,21 @@
  *
  ***************************************************************************/
 
-#include "PartReader.hpp"
+#include "StreamPartReader.hpp"
 
 namespace oatpp { namespace web { namespace mime { namespace multipart {
 
 const char* const StreamPartReader::TAG_NAME = "[oatpp::web::mime::multipart::StreamPartReader::TAG]";
 
-StreamPartReader::StreamPartReader(const std::shared_ptr<PartReaderResourceProvider>& resourceProvider,
+StreamPartReader::StreamPartReader(const std::shared_ptr<PartReaderStreamProvider>& streamProvider,
                                    v_io_size maxDataSize)
-  : m_resourceProvider(resourceProvider)
+  : m_streamProvider(streamProvider)
   , m_maxDataSize(maxDataSize)
 {}
 
 void StreamPartReader::onNewPart(const std::shared_ptr<Part>& part) {
 
-  if(!m_resourceProvider) {
+  if(!m_streamProvider) {
     throw std::runtime_error("[oatpp::web::mime::multipart::StreamPartReader::onNewPart()]: Error. Stream provider is nullptr.");
   }
 
@@ -48,13 +48,12 @@ void StreamPartReader::onNewPart(const std::shared_ptr<Part>& part) {
   }
 
   auto tagObject = std::make_shared<TagObject>();
-  tagObject->resource = m_resourceProvider->getResource(part);
-  tagObject->outputStream = tagObject->resource->openOutputStream();
+  tagObject->outputStream = m_streamProvider->getOutputStream(part);
   part->setTag(TAG_NAME, tagObject);
 
 }
 
-void StreamPartReader::onPartData(const std::shared_ptr<Part>& part, const char* data, oatpp::v_io_size size) {
+void StreamPartReader::onPartData(const std::shared_ptr<Part>& part, p_char8 data, oatpp::v_io_size size) {
 
   auto tag = part->getTagObject();
   if(!tag) {
@@ -83,8 +82,8 @@ void StreamPartReader::onPartData(const std::shared_ptr<Part>& part, const char*
     }
     tagObject->size += res;
   } else {
-    part->setPayload(tagObject->resource);
     part->clearTag();
+    part->setDataInfo(m_streamProvider->getInputStream(part));
   }
 
 }
@@ -92,9 +91,9 @@ void StreamPartReader::onPartData(const std::shared_ptr<Part>& part, const char*
 
 const char* const AsyncStreamPartReader::TAG_NAME = "[oatpp::web::mime::multipart::AsyncStreamPartReader::TAG]";
 
-AsyncStreamPartReader::AsyncStreamPartReader(const std::shared_ptr<PartReaderResourceProvider>& resourceProvider,
+AsyncStreamPartReader::AsyncStreamPartReader(const std::shared_ptr<AsyncPartReaderStreamProvider>& streamProvider,
                                              v_io_size maxDataSize)
-  : m_resourceProvider(resourceProvider)
+  : m_streamProvider(streamProvider)
   , m_maxDataSize(maxDataSize)
 {}
 
@@ -103,19 +102,19 @@ async::CoroutineStarter AsyncStreamPartReader::onNewPartAsync(const std::shared_
   class OnNewPartCoroutine : public async::Coroutine<OnNewPartCoroutine> {
   private:
     std::shared_ptr<Part> m_part;
-    std::shared_ptr<PartReaderResourceProvider> m_resourceProvider;
-    std::shared_ptr<data::resource::Resource> m_obtainedResource;
+    std::shared_ptr<AsyncPartReaderStreamProvider> m_streamProvider;
+    std::shared_ptr<data::stream::OutputStream> m_obtainedStream;
   public:
 
     OnNewPartCoroutine(const std::shared_ptr<Part>& part,
-                       const std::shared_ptr<PartReaderResourceProvider>& resourceProvider)
+                       const std::shared_ptr<AsyncPartReaderStreamProvider>& streamProvider)
       : m_part(part)
-      , m_resourceProvider(resourceProvider)
+      , m_streamProvider(streamProvider)
     {}
 
     Action act() override {
 
-      if(!m_resourceProvider) {
+      if(!m_streamProvider) {
         throw std::runtime_error("[oatpp::web::mime::multipart::AsyncStreamPartReader::onNewPartAsync(){OnNewPartCoroutine}]: Error. Stream provider is nullptr.");
       }
 
@@ -126,25 +125,24 @@ async::CoroutineStarter AsyncStreamPartReader::onNewPartAsync(const std::shared_
                                  "Part tag object is not nullptr. Seems like this part is already being processed by another part reader.");
       }
 
-      return m_resourceProvider->getResourceAsync(m_part, m_obtainedResource).next(yieldTo(&OnNewPartCoroutine::onResourceObtained));
+      return m_streamProvider->getOutputStreamAsync(m_part, m_obtainedStream).next(yieldTo(&OnNewPartCoroutine::onStreamObtained));
 
     }
 
-    Action onResourceObtained() {
+    Action onStreamObtained() {
       auto tagObject = std::make_shared<TagObject>();
-      tagObject->resource = m_obtainedResource;
-      tagObject->outputStream = m_obtainedResource->openOutputStream();
+      tagObject->outputStream = m_obtainedStream;
       m_part->setTag(TAG_NAME, tagObject);
       return finish();
     }
 
   };
 
-  return OnNewPartCoroutine::start(part, m_resourceProvider);
+  return OnNewPartCoroutine::start(part, m_streamProvider);
 
 }
 
-async::CoroutineStarter AsyncStreamPartReader::onPartDataAsync(const std::shared_ptr<Part>& part, const char* data, oatpp::v_io_size size) {
+async::CoroutineStarter AsyncStreamPartReader::onPartDataAsync(const std::shared_ptr<Part>& part, p_char8 data, oatpp::v_io_size size) {
 
   auto tag = part->getTagObject();
   if(!tag) {
@@ -168,10 +166,39 @@ async::CoroutineStarter AsyncStreamPartReader::onPartDataAsync(const std::shared
     }
     return tagObject->outputStream->writeExactSizeDataAsync(data, size);
   } else {
-    part->setPayload(tagObject->resource);
-    part->clearTag();
-    return nullptr;
+    return onPartDone(part);
   }
+
+}
+
+async::CoroutineStarter AsyncStreamPartReader::onPartDone(const std::shared_ptr<Part>& part) {
+
+  class OnPartDoneCoroutine : public async::Coroutine<OnPartDoneCoroutine> {
+  public:
+    std::shared_ptr<Part> m_part;
+    std::shared_ptr<AsyncPartReaderStreamProvider> m_streamProvider;
+    std::shared_ptr<data::stream::InputStream> m_obtainedStream;
+  public:
+
+    OnPartDoneCoroutine(const std::shared_ptr<Part>& part,
+                        const std::shared_ptr<AsyncPartReaderStreamProvider>& streamProvider)
+      : m_part(part)
+      , m_streamProvider(streamProvider)
+    {}
+
+    Action act() override {
+      return m_streamProvider->getInputStreamAsync(m_part, m_obtainedStream).next(yieldTo(&OnPartDoneCoroutine::onStreamObtained));
+    }
+
+    Action onStreamObtained() {
+      m_part->setDataInfo(m_obtainedStream);
+      m_part->clearTag();
+      return finish();
+    }
+
+  };
+
+  return OnPartDoneCoroutine::start(part, m_streamProvider);
 
 }
 

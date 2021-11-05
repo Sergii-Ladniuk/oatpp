@@ -59,31 +59,16 @@ public:
 
 class Provider : public oatpp::provider::Provider<Resource> {
 private:
-
-  class ResourceInvalidator : public oatpp::provider::Invalidator<Resource> {
-  public:
-
-    void invalidate(const std::shared_ptr<Resource>& resource) override {
-      (void) resource;
-    }
-
-  };
-
-private:
-  std::shared_ptr<ResourceInvalidator> m_invalidator = std::make_shared<ResourceInvalidator>();
   std::atomic<v_int64> m_id;
 public:
 
-  oatpp::provider::ResourceHandle<Resource> get() override {
-    return oatpp::provider::ResourceHandle<Resource>(
-      std::make_shared<MyResource>(++m_id),
-      m_invalidator
-    );
+  std::shared_ptr<Resource> get() override {
+    return std::make_shared<MyResource>(++m_id);
   }
 
-  async::CoroutineStarterForResult<const oatpp::provider::ResourceHandle<Resource> &> getAsync() override {
+  async::CoroutineStarterForResult<const std::shared_ptr<Resource> &> getAsync() override {
 
-    class GetCoroutine : public oatpp::async::CoroutineWithResult<GetCoroutine, const oatpp::provider::ResourceHandle<Resource>&> {
+    class GetCoroutine : public oatpp::async::CoroutineWithResult<GetCoroutine, const std::shared_ptr<Resource>&> {
     private:
       Provider* m_provider;
     public:
@@ -93,15 +78,16 @@ public:
       {}
 
       Action act() override {
-        return _return(oatpp::provider::ResourceHandle<Resource>(
-          std::make_shared<MyResource>(++ m_provider->m_id),
-          m_provider->m_invalidator
-        ));
+        return _return(std::make_shared<MyResource>(++ m_provider->m_id));
       }
 
     };
 
     return GetCoroutine::startForResult(this);
+  }
+
+  void invalidate(const std::shared_ptr<Resource>& resource) override {
+    (void) resource;
   }
 
   void stop() override {
@@ -117,13 +103,12 @@ public:
 
 struct AcquisitionProxy : public oatpp::provider::AcquisitionProxy<Resource, AcquisitionProxy> {
 
-  AcquisitionProxy(const oatpp::provider::ResourceHandle<Resource>& resource,
-                   const std::shared_ptr<PoolInstance>& pool)
+  AcquisitionProxy(const std::shared_ptr<Resource>& resource, const std::shared_ptr<PoolInstance>& pool)
     : oatpp::provider::AcquisitionProxy<Resource, AcquisitionProxy>(resource, pool)
   {}
 
   v_int64 myId() override {
-    return _handle.object->myId();
+    return _obj->myId();
   }
 
 };
@@ -134,7 +119,7 @@ typedef oatpp::provider::Pool<oatpp::provider::Provider<Resource>, Resource, Acq
 class ClientCoroutine : public oatpp::async::Coroutine<ClientCoroutine> {
 private:
   std::shared_ptr<Pool> m_pool;
-  oatpp::provider::ResourceHandle<Resource> m_resource;
+  std::shared_ptr<Resource> m_resource;
   bool m_invalidate;
 public:
 
@@ -147,14 +132,14 @@ public:
     return m_pool->getAsync().callbackTo(&ClientCoroutine::onGet);
   }
 
-  Action onGet(const oatpp::provider::ResourceHandle<Resource>& resource) {
+  Action onGet(const std::shared_ptr<Resource>& resource) {
     m_resource = resource;
     return waitFor(std::chrono::milliseconds(100)).next(yieldTo(&ClientCoroutine::onUse));
   }
 
   Action onUse() {
     if(m_invalidate) {
-      m_resource.invalidator->invalidate(m_resource.object);
+      m_pool->invalidate(m_resource);
     }
     return finish();
   }
@@ -165,7 +150,7 @@ void clientMethod(std::shared_ptr<Pool> pool, bool invalidate) {
   auto resource = pool->get();
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   if(invalidate) {
-    resource.invalidator->invalidate(resource.object);
+    pool->invalidate(resource);
   }
 }
 
@@ -176,7 +161,7 @@ void PoolTest::onRun() {
   oatpp::async::Executor executor(10, 1, 1);
 
   auto provider = std::make_shared<Provider>();
-  auto pool = Pool::createShared(provider, 10, std::chrono::seconds(2));
+  auto pool = Pool::createShared(provider, 10, std::chrono::seconds(1));
 
 
   std::list<std::thread> threads;
@@ -187,12 +172,9 @@ void PoolTest::onRun() {
     executor.execute<ClientCoroutine>(pool, false);
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds (200));
-
-  OATPP_LOGD(TAG, "1) pool->getCounter() == %d", pool->getCounter());
   OATPP_ASSERT(pool->getCounter() == 10);
   OATPP_LOGD(TAG, "Waiting...");
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(6));
   OATPP_LOGD(TAG, "Pool counter=%d", pool->getCounter());
   OATPP_ASSERT(pool->getCounter() == 0);
 
@@ -202,12 +184,9 @@ void PoolTest::onRun() {
     executor.execute<ClientCoroutine>(pool, false);
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds (200));
-
-  OATPP_LOGD(TAG, "2) pool->getCounter() == %d", pool->getCounter());
   OATPP_ASSERT(pool->getCounter() == 10);
   OATPP_LOGD(TAG, "Waiting...");
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(6));
   OATPP_LOGD(TAG, "Pool counter=%d", pool->getCounter());
   OATPP_ASSERT(pool->getCounter() == 0);
 

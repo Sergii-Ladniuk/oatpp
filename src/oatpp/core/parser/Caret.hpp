@@ -25,6 +25,7 @@
 #ifndef oatpp_parser_Caret_hpp
 #define oatpp_parser_Caret_hpp
 
+#include "oatpp/core/collection/LinkedList.hpp"
 #include "oatpp/core/Types.hpp"
 
 namespace oatpp { namespace parser {
@@ -72,7 +73,7 @@ public:
      * Get pointer to a labeled data.
      * @return
      */
-    const char* getData();
+    p_char8 getData();
 
     /**
      * Get size of labeled data.
@@ -91,6 +92,13 @@ public:
      * @return - end position of the label or `-1` if end() wasn't called yet.
      */
     v_buff_size getEndPosition();
+
+    /**
+     * Create &id:oatpp::String; from labeled data.
+     * @param saveAsOwnData - `true` - allocate new memory block for string. `false` - string will point to the same data as label.
+     * @return - &id:oatpp::String;.
+     */
+    oatpp::String toString(bool saveAsOwnData);
 
     /**
      * Same as`toString(true).`
@@ -151,20 +159,20 @@ public:
   };
 
 private:
-  const char* m_data;
+  p_char8 m_data;
   v_buff_size m_size;
   v_buff_size m_pos;
   const char* m_errorMessage;
   v_int64 m_errorCode;
-  std::shared_ptr<std::string> m_dataMemoryHandle;
+  std::shared_ptr<oatpp::base::StrBuffer> m_dataMemoryHandle;
 public:
   Caret(const char* text);
-  Caret(const char* parseData, v_buff_size dataSize);
+  Caret(p_char8 parseData, v_buff_size dataSize);
   Caret(const oatpp::String& str);
 public:
   
   static std::shared_ptr<Caret> createShared(const char* text);
-  static std::shared_ptr<Caret> createShared(const char* parseData, v_buff_size dataSize);
+  static std::shared_ptr<Caret> createShared(p_char8 parseData, v_buff_size dataSize);
   static std::shared_ptr<Caret> createShared(const oatpp::String& str);
 
   virtual ~Caret();
@@ -173,13 +181,13 @@ public:
    * Get pointer to a data, passed to Caret constructor
    * @return
    */
-  const char* getData();
+  p_char8 getData();
 
   /**
    * Same as &getData()[position]
    * @return
    */
-  const char* getCurrData();
+  p_char8 getCurrData();
 
   /**
    * Get size of a data
@@ -191,7 +199,7 @@ public:
    * Get data memoryHandle.
    * @return
    */
-  std::shared_ptr<std::string> getDataMemoryHandle();
+  std::shared_ptr<oatpp::base::StrBuffer> getDataMemoryHandle();
 
   /**
    * Set caret position relative to data
@@ -289,7 +297,7 @@ public:
    * @param setSize
    * @return true if other char found
    */
-  bool skipCharsFromSet(const char* set, v_buff_size setSize);
+  bool skipCharsFromSet(p_char8 set, v_buff_size setSize);
 
   /**
    * Find one of chars defined by set.
@@ -304,7 +312,7 @@ public:
    * @param setSize
    * @return char found or -1 if no char found
    */
-  v_buff_size findCharFromSet(const char* set, v_buff_size setSize);
+  v_buff_size findCharFromSet(p_char8 set, v_buff_size setSize);
 
   /**
    * Find "\r\n" chars
@@ -400,7 +408,7 @@ public:
    * @param skipIfTrue - increase position if true
    * @return
    */
-  bool isAtText(const char* text, v_buff_size textSize, bool skipIfTrue = false);
+  bool isAtText(p_char8 text, v_buff_size textSize, bool skipIfTrue = false);
 
   /**
    * Check if follows text (Not Case Sensitive)
@@ -417,7 +425,7 @@ public:
    * @param skipIfTrue - increase position if true
    * @return
    */
-  bool isAtTextNCS(const char* text, v_buff_size textSize, bool skipIfTrue = false);
+  bool isAtTextNCS(p_char8 text, v_buff_size textSize, bool skipIfTrue = false);
 
   /**
    * Parse enclosed string.
@@ -443,7 +451,7 @@ public:
    * @param textSize
    * @return true if found
    */
-  bool findText(const char* text, v_buff_size textSize);
+  bool findText(p_char8 text, v_buff_size textSize);
 
   /**
    * Check if caret is at char defined by set
@@ -460,7 +468,7 @@ public:
    * @param setSize
    * @return
    */
-  bool isAtCharFromSet(const char* set, v_buff_size setSize) const;
+  bool isAtCharFromSet(p_char8 set, v_buff_size setSize) const;
 
   /**
    * Check if caret is at char

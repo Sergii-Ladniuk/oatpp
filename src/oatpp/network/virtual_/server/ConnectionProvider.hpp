@@ -37,16 +37,6 @@ namespace oatpp { namespace network { namespace virtual_ { namespace server {
  */
 class ConnectionProvider : public oatpp::network::ServerConnectionProvider {
 private:
-
-  class ConnectionInvalidator : public provider::Invalidator<data::stream::IOStream> {
-  public:
-
-    void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override;
-
-  };
-
-private:
-  std::shared_ptr<ConnectionInvalidator> m_invalidator;
   std::shared_ptr<virtual_::Interface> m_interface;
   std::shared_ptr<virtual_::Interface::ListenerLock> m_listenerLock;
   bool m_open;
@@ -58,14 +48,14 @@ public:
    * Constructor.
    * @param interface - &id:oatpp::network::virtual_::Interface;.
    */
-  ConnectionProvider(const std::shared_ptr<virtual_::Interface>& _interface);
+  ConnectionProvider(const std::shared_ptr<virtual_::Interface>& interface);
 
   /**
    * Create shared ConnectionProvider.
    * @param interface - &id:oatpp::network::virtual_::Interface;.
    * @return - `std::shared_ptr` to ConnectionProvider.
    */
-  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<virtual_::Interface>& _interface);
+  static std::shared_ptr<ConnectionProvider> createShared(const std::shared_ptr<virtual_::Interface>& interface);
 
   /**
    * Limit the available amount of bytes to read from socket and limit the available amount of bytes to write to socket. <br>
@@ -84,7 +74,7 @@ public:
    * Get incoming connection.
    * @return &id:oatpp::data::stream::IOStream;.
    */
-  provider::ResourceHandle<data::stream::IOStream> get() override;
+  std::shared_ptr<data::stream::IOStream> get() override;
 
   /**
    * **NOT IMPLEMENTED!**<br>
@@ -95,7 +85,7 @@ public:
    * <br>
    * *It may be implemented later.*
    */
-  oatpp::async::CoroutineStarterForResult<const provider::ResourceHandle<data::stream::IOStream>&> getAsync() override {
+  oatpp::async::CoroutineStarterForResult<const std::shared_ptr<data::stream::IOStream>&> getAsync() override {
     /*
      *  No need to implement this.
      *  For Asynchronous IO in oatpp it is considered to be a good practice
@@ -105,6 +95,15 @@ public:
      *  It may be implemented later
      */
     throw std::runtime_error("[oatpp::network::virtual_::server::ConnectionProvider::getConnectionAsync()]: Error. Not implemented.");
+  }
+
+  /**
+   * Does nothing.
+   * @param connection
+   */
+  void invalidate(const std::shared_ptr<data::stream::IOStream>& connection) override {
+    (void)connection;
+    // DO Nothing.
   }
   
 };

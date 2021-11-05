@@ -49,8 +49,6 @@ class TestChild : public oatpp::DTO {
 
 public:
 
-  TestChild() = default;
-
   TestChild(const char* pName, const char* pSecondName)
     : name(pName)
     , secondName(pSecondName)
@@ -215,7 +213,7 @@ void DTOMapperTest::onRun(){
   
   auto result = mapper->writeToString(test1);
   
-  OATPP_LOGV(TAG, "json='%s'", result->c_str());
+  OATPP_LOGV(TAG, "json='%s'", (const char*) result->getData());
   
   OATPP_LOGV(TAG, "...");
   OATPP_LOGV(TAG, "...");
@@ -268,7 +266,7 @@ void DTOMapperTest::onRun(){
   
   result = mapper->writeToString(obj);
   
-  OATPP_LOGV(TAG, "json='%s'", result->c_str());
+  OATPP_LOGV(TAG, "json='%s'", (const char*) result->getData());
 
   {
 
@@ -290,12 +288,12 @@ void DTOMapperTest::onRun(){
     obj->anyList->push_back(map);
 
     auto json = mapper->writeToString(obj);
-    OATPP_LOGV(TAG, "any json='%s'", json->c_str());
+    OATPP_LOGV(TAG, "any json='%s'", (const char*) json->getData());
 
     auto deserializedAny = mapper->readFromString<oatpp::Fields<oatpp::Any>>(json);
 
     auto json2 = mapper->writeToString(deserializedAny);
-    OATPP_LOGV(TAG, "any json='%s'", json2->c_str());
+    OATPP_LOGV(TAG, "any json='%s'", (const char*) json2->getData());
 
   }
 
